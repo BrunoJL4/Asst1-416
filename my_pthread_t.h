@@ -59,4 +59,19 @@ int my_pthread_mutex_unlock(my_pthread_mutex_t *mutex);
 /* destroy the mutex */
 int my_pthread_mutex_destroy(my_pthread_mutex_t *mutex);
 
+
+/* WE THOUGHT THESE WERE NECESSARY, JUST SEPERATING THEM FROM WHAT WAS GIVEN */
+
+/* intializes manager thread to oversee progress of other threads
+   return: 0 - not init, return 1 - init */
+int init_master_thread();
+
+/* check masterthreads exists 
+   return: 0 - does not exists, return 1 - exists */
+int drug_check();
+
+/* check thread exists
+   return: 0 - does not exists, return 1 - exists */
+int terrorist_check(my_pthread_t thread);
+
 #endif

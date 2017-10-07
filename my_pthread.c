@@ -10,6 +10,9 @@
 
 /* create a new thread */
 int my_pthread_create(my_pthread_t * thread, pthread_attr_t * attr, void *(*function)(void*), void * arg) {
+	//call drug_check() - check that masterthread exists	
+	//if doesn't exist
+	//call master_thread() - master thread is the 'gatekeeper' & schedules performing maintenence 		
 	return 0;
 };
 
@@ -24,6 +27,8 @@ void my_pthread_exit(void *value_ptr) {
 
 /* wait for thread termination */
 int my_pthread_join(my_pthread_t thread, void **value_ptr) {
+	//call terrorist_check() - check that thread exists
+
 	return 0;
 };
 

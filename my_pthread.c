@@ -23,13 +23,29 @@ int my_pthread_yield() {
 
 /* terminate a thread */
 void my_pthread_exit(void *value_ptr) {
+    
+    //set value_ptr
+    //take job off MLPQ
+    
 };
 
 /* wait for thread termination */
 int my_pthread_join(my_pthread_t thread, void **value_ptr) {
-	//call terrorist_check() - check that thread exists
-
-	return 0;
+	//Does target thread exist? - terrorist_check()
+    //if(target thread been previously joined)
+        //creates undefined behavior - manpages
+    
+    /* ACTUAL WORK */
+    
+    //target thread HAS TO FINISH RUNNING before caller gets anymore cpu time - how to implement?
+    //i think above requires a context switch to target thread at this point
+    
+    //if(Target thread was cancelled)
+        //*RETVAL = PTHREAD_CANCEL
+        //return -1; => is this considered an error?
+    //if(exit's retval != null)
+        //value_ptr = exits retval's address;
+    return 0; //success
 };
 
 /* initial the mutex lock */

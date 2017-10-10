@@ -11,6 +11,7 @@
 #define _GNU_SOURCE
 
 /* include lib header files that you need here: */
+#include <ucontext.h>
 #include <unistd.h>
 #include <sys/syscall.h>
 #include <sys/types.h>
@@ -19,52 +20,60 @@
 
 typedef uint my_pthread_t;
 
+/* Our own enums describing thread status. */
+enum threadStatus {
+	THREAD_RUNNING = 0,
+	THREAD_READY = 1,
+	THREAD_BLOCKED = 2
+};
+
+
+/* Data structure for storing thread information.
+
+This struct is used for each thread we have, to store information
+about it.
+
+*/
 typedef struct threadControlBlock {
-	/* add something here */
+	/* The thread's current status. It tells us whether the thread
+	is currently running, whether it's ready to run but isn't, 
+	or whether it's blocked. Can add additional enums
+	as we go forward. */
+	threadStatus status;
+
+	/* The thread's ID. Due to structure for storing tcb's
+	inherently being the thread's ID, this might be redundant.*/
+	my_pthread_t tid;
+
+	/* Pointer to the stack this thread runs on. This is not
+	specific to the thread, as other threads may run on
+	the same stack.*/
+	void *stackPtr;
+
+	/* The context this thread runs on. This is specific to
+	the thread, whereas multiple threads may share a stack.*/
+	ucontext_t context;
+
+	/* The number of time slices allocated to the thread.
+	This is zero by default, and is allocated during the
+	maintenance cycle.*/
+	unsigned int timeSlices;
+
+	/* TODO @all: Add anymore members to this struct
+	which might be necessary. */
+
+
 } tcb; 
+
 
 /* mutex struct definition */
 typedef struct my_pthread_mutex_t {
 	/* add something here */
 } my_pthread_mutex_t;
 
+
 /* define your data structures here: */
 
-/* Data structure for storing thread information.
-
-This struct will be used in the tcb to store information about threads.
-A thread's tid will correspond to its space in an array in the tcb consisting
-of my_pthread_info structs. Thread ID #0 will be reserved for the manager
-thread, while Threads #1 to the MaxNumThreads-1 will be used for future
-thread instances. 
-
-*/
-typedef struct my_pthread_t_information {
-	/* The thread's ID. 
-
-	TID's will be allocated systematically by
-	the manager thread, in ascending order from 1 to the max thread number
-	minus one; thread #0 will be reserved for the manager thread itself.
-	When the manager thread runs over the max threads allocated, it will go
-	into a linked list of destroyed thread ID's and recycle a thread ID and
-	its corresponding space in the my_pthread_info array. 
-
-	*/
-	my_pthread_t tid;
-
-	/* The number of time slices/quanta left for this thread.
-
-	Time slices/quanta are allocated by the manager thread to individual threads by
-	their priority level. This member should become important only when the thread 
-	is in the run queue.
-
-	*/
-	uint timeSlices;
-
-	/* TODO @all: add any members pertinent to the design.*/
-
-
-} my_pthread_info;
 
 /* Data structure for linked lists of my_pthread_t values.
 

@@ -30,6 +30,63 @@ typedef struct my_pthread_mutex_t {
 
 /* define your data structures here: */
 
+/* Data structure for storing thread information.
+
+This struct will be used in the tcb to store information about threads.
+A thread's tid will correspond to its space in an array in the tcb consisting
+of my_pthread_info structs. Thread ID #0 will be reserved for the manager
+thread, while Threads #1 to the MaxNumThreads-1 will be used for future
+thread instances. 
+
+*/
+typedef struct my_pthread_t_information {
+	/* The thread's ID. 
+
+	TID's will be allocated systematically by
+	the manager thread, in ascending order from 1 to the max thread number
+	minus one; thread #0 will be reserved for the manager thread itself.
+	When the manager thread runs over the max threads allocated, it will go
+	into a linked list of destroyed thread ID's and recycle a thread ID and
+	its corresponding space in the my_pthread_info array. 
+
+	*/
+	my_pthread_t tid;
+
+	/* The number of time slices/quanta left for this thread.
+
+	Time slices/quanta are allocated by the manager thread to individual threads by
+	their priority level. This member should become important only when the thread 
+	is in the run queue.
+
+	*/
+	uint timeSlices;
+
+	/* TODO @all: add any members pertinent to the design.*/
+
+
+} my_pthread_info;
+
+/* Data structure for linked lists of my_pthread_t values.
+
+This struct will be used in the tcb to store linked lists of my_pthread_t's, or
+Thread ID's/TID's for short. The list of usages of pnodes is as follows:
+
+1. Each "bucket" of the MLPQ
+2. The run queue in the manager thread
+3. The "recyclable thread ID" list used in the manager thread
+
+ */
+typedef struct my_pthread_node {
+	/* The ID of the thread being referenced by this pnode. */
+	my_pthread_t tid;
+
+	/* The next pnode in the list. */
+	my_pthread_node *next;
+
+
+} pnode;
+
+
 // Feel free to add your own auxiliary data structures
 
 

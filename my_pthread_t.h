@@ -47,8 +47,8 @@ typedef struct threadControlBlock {
 
 	/* Pointer to the stack this thread runs on. This is not
 	specific to the thread, as other threads may run on
-	the same stack.*/
-	void *stackPtr;
+	the same stack. May be redundant with context here.*/
+	stack_t stackPtr;
 
 	/* The context this thread runs on. This is specific to
 	the thread, whereas multiple threads may share a stack.*/

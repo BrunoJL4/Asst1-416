@@ -8,6 +8,81 @@
 
 #include "my_pthread_t.h"
 
+/* Define global variables here. */
+
+/* TODO @all: Decide whether or not these variables should just be 
+located within the manager thread's function, or if they should
+stay global. */
+
+/* The Multi-Level Priority Queue (MLPQ).
+
+The MLPQ is an array of pnodes. Since each "pnode" will
+really just be a pointer to a pnode in this array, MLPQ is
+a variable of type pointer-to-a-pnode-pointer, or pnode **MLPQ.
+
+The initialization function for building the tcb will initialize
+the MLPQ to an array of an allocated length equal to the number
+of priority levels. 5 levels = 5 cells in the array.
+*/
+pnode **MLPQ;
+
+
+/* The array that stores pointers to all Thread Control Blocks.
+
+tcbList has one cell allocated per possible tcb. The index of
+a cell in tcbList corresponds to the thread's ID; so Thread #200
+should be located in tcbList[200]. tcbList will be NULL when
+initialized by the manager thread, but otherwise should be treated
+as an array of pointers.
+
+*/
+tcb **tcbList;
+
+
+/* This is the Run Queue.
+
+The Run queue, or runQueue, is a linked list of pnodes that
+will be run from start to finish. runQueue will be NULL by
+default or if no nodes remain to be run. During the maintenance
+cycle of the manager thread, runQueue will be populated with
+pnodes in the order in which they are run. Threads remaining
+in runQueue which haven't run yet when the maintenance cycle
+begins, will have their priority increased in that cycle.
+It should also be noted that runQueue is populated until
+we run out of time slices to allocate to threads...
+right now we're looking at 20 time slices, or quanta, of
+25ms each.
+
+The initialization function for building the tcb will initialize
+runQueue to NULL. */
+pnode *runQueue;
+
+
+/* This is the Recyclable Queue.
+
+The Recyclable Queue, or recyclableQueue, is a linked list of pnodes
+that contains all "recyclable" thread ID's. A thread ID is recyclable
+when the thread holding that ID has been destroyed and not yet
+reused. recyclableQueue will be used once the max number of
+threads has been exceeded.
+*/
+pnode *recyclableQueue;
+
+
+/* Quanta length; by default should be 25ms.*/
+unsigned int quantaLength;
+
+/* Number of threads created so far.*/
+unsigned int threadsSoFar;
+
+/* Maximum number of threads; used to determine the space in
+tcbList, and is compared by the manager thread to threadsSoFar
+to see if it needs to start using recyclableQueue. */
+unsigned int maxNumThreads;
+
+
+/* End global variable declarations. */
+
 /* create a new thread */
 int my_pthread_create(my_pthread_t * thread, pthread_attr_t * attr, void *(*function)(void*), void * arg) {
 	//call drug_check() - check that masterthread exists	
@@ -68,3 +143,18 @@ int my_pthread_mutex_destroy(my_pthread_mutex_t *mutex) {
 	return 0;
 }
 
+
+/* Essential support functions go here (e.g: manager thread) */
+
+
+/* Auxiliary support functions go here. */
+
+/* TODO @joe, alex: Implement and document this. */
+int terrorist_check() {
+	return 0;
+}
+
+/* TODO @joe, alex: Implement and document this. */
+int drug_check() {
+	return 0;
+}

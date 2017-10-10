@@ -25,6 +25,8 @@ enum threadStatus {
 	THREAD_RUNNING = 0,
 	THREAD_READY = 1,
 	THREAD_BLOCKED = 2
+	THREAD_WAITING = 3,
+	THREAD_DONE = 4
 };
 
 

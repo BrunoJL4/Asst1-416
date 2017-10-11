@@ -125,21 +125,47 @@ int my_pthread_join(my_pthread_t thread, void **value_ptr) {
 
 /* initial the mutex lock */
 int my_pthread_mutex_init(my_pthread_mutex_t *mutex, const pthread_mutexattr_t *mutexattr) {
+	//Check if mutex is initialized
+		//return 0
+	//Else
+		//initialize mutex as free & assign mutex attribute
+		//return 1
 	return 0;
 }
 
 /* aquire the mutex lock */
 int my_pthread_mutex_lock(my_pthread_mutex_t *mutex) {
+	//Call my_pthread_mutex_init
+	//If mutex is locked
+		//Enter queue for lock
+		//Yield
+	//Set mutex value to locked
+	//Set mutex owner to current thread
 	return 0;
 }
 
 /* release the mutex lock */
 int my_pthread_mutex_unlock(my_pthread_mutex_t *mutex) {
+	//If mutex is NOT initialized
+		//We can't unlock an unanitialized thread ERROR
+	//Elif mutex does not belong to us
+		//Can't unlock a thread we didn't lock ERROR
+	//Else
+		//Unlock mutex
+		//Check waiting queue
+			//alert the next available thread & remove it from queue/add back to run queue
 	return 0;
 }
 
 /* destroy the mutex */
 int my_pthread_mutex_destroy(my_pthread_mutex_t *mutex) {
+	//If mutex is NOT initialized
+		//Can't destroy an uninitialized mutex
+	//Elif mutex is locked
+		//Can't destroy a mutex being used
+	//Else
+		//Set mutex back to null
+		
 	return 0;
 }
 
@@ -148,6 +174,11 @@ int my_pthread_mutex_destroy(my_pthread_mutex_t *mutex) {
 
 
 /* Auxiliary support functions go here. */
+
+/* TODO @joe, alex: Implement and document this. */
+int init_master_thread() {
+	return 0;
+}
 
 /* TODO @joe, alex: Implement and document this. */
 int terrorist_check() {

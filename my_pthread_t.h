@@ -68,9 +68,20 @@ typedef struct threadControlBlock {
 } tcb; 
 
 
-/* mutex struct definition */
+/* Mutex struct definition */
 typedef struct my_pthread_mutex_t {
-	/* add something here */
+	/* 0 if it is not locked, 1 if it is */
+	int isLocked; 
+	 
+	/* Threads waiting for this lock */
+	pnode *waitQueue;
+	
+	/* Current thread using this lock */
+	my_pthread_t tid;
+	
+	/* Mutex attribute */
+	const pthread_mutexattr_t *mutexattr;
+	
 } my_pthread_mutex_t;
 
 

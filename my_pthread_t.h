@@ -50,7 +50,7 @@ typedef struct threadControlBlock {
 	/* Pointer to the stack this thread runs on. This is not
 	specific to the thread, as other threads may run on
 	the same stack. May be redundant with context here.*/
-	stack_t stackPtr;
+	stack_t stack;
 
 	/* The context this thread runs on. This is specific to
 	the thread, whereas multiple threads may share a stack.*/
@@ -60,10 +60,6 @@ typedef struct threadControlBlock {
 	This is zero by default, and is allocated during the
 	maintenance cycle.*/
 	unsigned int timeSlices;
-
-	/* TODO @all: Add anymore members to this struct
-	which might be necessary. */
-
 
 } tcb; 
 
@@ -144,5 +140,9 @@ int my_pthread_mutex_destroy(my_pthread_mutex_t *mutex);
 /* intializes manager thread to oversee progress of other threads
    return: 0 - not init, return 1 - init */
 int init_master_thread();
+
+/* Creates a new tcb instance. */
+tcb *createTcb(threadStatus status, my_pthread_t id, stack_t stack, 
+	ucontext_t context, unsigned int timeSlices);
 
 #endif

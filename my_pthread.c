@@ -116,25 +116,40 @@ int my_pthread_create(my_pthread_t * thread, pthread_attr_t * attr, void *(*func
 	getcontext(&Manager);
 	//add this new thread to the tcb
 	threadStatus status = THREAD_READY;
-	my_pthread_t id = threadsSoFar;
+	my_pthread_t tid = threadsSoFar;
 	stack_t stack = malloc(MEM);
 	unsigned int timeSlices = 0;
-	ucontext_t T;
-	getcontext(&T);
-	T.uc_link = Manager; //Manager thread will run after this thread
-	T.uc_sigmask = 0;
-	T.uc_stack = stack;
-	makecontext(&T, (void*)&function, 0);  //@All: take args for function and # args to translate into this method call
-	//Check if this continues to get added to end of tcbList or if we need to use recycle stack
+	ucontext_t context;
+	getcontext(&context);
+	//threads should always link back to manager when stopped/done
+	context.uc_link = Manager;
+	context.uc_sigmask = 0;
+	context.uc_stack = stack;
+	makecontext(&context, (void*)&function, 0);  //@All: take args for function and # args to translate into this method call
+	//check if this continues to get added to end of tcbList or if we need to use recycle stack
 	if (threadsSoFar >= maxNumThreads) {
-		// Check recyclableQueue, return NULL if there are no available thread ID's
-		if (recyclableQueue == NULL) { return -1; }
-		//find an open id
+		//check recyclableQueue, return NULL if there are no available thread ID's
+		if (recyclableQueue == NULL) {
+			printf("No more available thread ID's!\n"); 
+			return -1; 
+		}
+		//remove first available ID from queue
 		pnode *ptr = recyclableQueue;
-		recyclableQueue = recyclableQueue.next;
-		id = ptr.tid;
+		recyclableQueue = recyclableQueue->next;
+		//take the ID
+		tid = ptr->tid;
+		//free the pnode for the recycled ID
+		free(ptr);
+		//make a new TCB from the gathered information
+		tcb *newTcb = createTcb(status, id, stack, context, timeSlices);
+		//change the tcb instance in tcbList[id] to this tcb
+		tcbList[tid] = newTcb;
+		return tid;
 	}
-	tcbList[threadsSoFar] = { status, id, stack, T, timeSlices }
+	// if still using new ID's, just use threadsSoFar as the index and increment it
+	tcb *newTcb = createTcb(status, id, stack, context, timeSlices);
+	tcbList[threadsSoFar] = newTcb;
+	threadsSoFar ++;
 	//@All: adjust this on the priority list so that the manager thread knows where to put this on the run queue
 	//call master_thread() - master thread is the 'gatekeeper' & schedules performing maintenence 	
 	swapcontext(&Main, &Manager);
@@ -224,9 +239,6 @@ int my_pthread_mutex_destroy(my_pthread_mutex_t *mutex) {
 
 /* Essential support functions go here (e.g: manager thread) */
 
-
-/* Auxiliary support functions go here. */
-
 /* TODO @joe, alex: Implement and document this. */
 int init_master_thread() {
 	getcontext(&Manager);
@@ -243,3 +255,21 @@ int init_master_thread() {
 	
 	return 0;
 }
+
+/* Returns a pointer to a new tcb instance. */
+tcb *createTcb(threadStatus status, my_pthread_t tid, stack_t stack, 
+	ucontext_t context, unsigned int timeSlices) {
+	// allocate memory for tcb instance
+	tcb *ret = (tcb*) malloc(sizeof(tcb));
+	// set members to inputs
+	ret->status = status;
+	ret->tid = tid;
+	ret->stack = stack;
+	ret->context = context;
+	ret->timeSlices = timeSlices;
+	// return a pointer to the instance
+	return ret;
+}
+
+/* Auxiliary support functions go here. */
+

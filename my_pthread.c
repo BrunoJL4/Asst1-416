@@ -10,7 +10,7 @@
 #define MEM 16384 //Amount of memory used for a new context stack
 
 /* Additional ucontext funtion info to help out */
-//getcontext(context) - initializes the context or explicitly gets the context specified
+//getcontext(context) - initializes a blank context or explicitly gets the context specified
 //setcontext(context) - explicitly sets the current context to context specified
 //makecontext(context, fn, #args) - assigns specified context to a function
 //swapcontext(context1, context2) - assigns current context to first arg, then runs second arg context
@@ -173,7 +173,7 @@ void my_pthread_exit(void *value_ptr) {
 
 /* wait for thread termination */
 int my_pthread_join(my_pthread_t thread, void **value_ptr) {
-	//Does target thread exist? - terrorist_check()
+	//Does target thread exist?
     //if(target thread been previously joined)
         //creates undefined behavior - manpages
     

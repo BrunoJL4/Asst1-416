@@ -106,10 +106,10 @@ int my_pthread_manager() {
 
 /* create a new thread */
 int my_pthread_create(my_pthread_t * thread, pthread_attr_t * attr, void *(*function)(void*), void * arg) {
-	//check that masterthread exists	
+	//check that manager thread exists	
 	//init if it does not
 	if (managerThread_isActive != 1) {
-		init_master_thread();
+		init_manager_thread();
 		managerThread_isActive = 1;
 	}
 	//get the manager thread
@@ -151,7 +151,7 @@ int my_pthread_create(my_pthread_t * thread, pthread_attr_t * attr, void *(*func
 	tcbList[threadsSoFar] = newTcb;
 	threadsSoFar ++;
 	//@All: adjust this on the priority list so that the manager thread knows where to put this on the run queue
-	//call master_thread() - master thread is the 'gatekeeper' & schedules performing maintenence 	
+	//call manager_thread() - manager thread is the 'gatekeeper' & schedules performing maintenence 	
 	swapcontext(&Main, &Manager);
 	
 	//returns the new thread id on success
@@ -240,7 +240,7 @@ int my_pthread_mutex_destroy(my_pthread_mutex_t *mutex) {
 /* Essential support functions go here (e.g: manager thread) */
 
 /* TODO @joe, alex: Implement and document this. */
-int init_master_thread() {
+int init_manager_thread() {
 	getcontext(&Manager);
 	Manager.uc_link = 0; //No other context will resume after this one
 	Manager.uc_sigmask = 0; //No signals

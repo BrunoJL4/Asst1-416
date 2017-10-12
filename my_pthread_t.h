@@ -29,6 +29,12 @@ enum threadStatus {
 	THREAD_DONE = 4
 };
 
+/* Our own enums describing mutex lock status. */
+enum lockStatus {
+	LOCKED = 0,
+	UNLOCKED = 1
+};
+
 
 /* Data structure for storing thread information.
 
@@ -66,17 +72,17 @@ typedef struct threadControlBlock {
 
 /* Mutex struct definition */
 typedef struct my_pthread_mutex_t {
-	/* 0 if it is not locked, 1 if it is */
-	int isLocked; 
-	 
+	/* UNLOCKED or LOCKED */
+	lockStatus status;
+
 	/* Threads waiting for this lock */
 	pnode *waitQueue;
 	
-	/* Current thread using this lock */
-	my_pthread_t tid;
+	/* Current thread that owns this lock */
+	my_pthread_t ownerID;
 	
 	/* Mutex attribute */
-	const pthread_mutexattr_t *mutexattr;
+	const pthread_mutexattr_t *attr;
 	
 } my_pthread_mutex_t;
 

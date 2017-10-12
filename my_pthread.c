@@ -33,6 +33,8 @@ of priority levels. 5 levels = 5 cells in the array.
 */
 pnode **MLPQ;
 
+unsigned int levels = 3;
+
 
 /* The array that stores pointers to all Thread Control Blocks.
 
@@ -91,26 +93,20 @@ unsigned int maxNumThreads;
 /* contexts */
 ucontext_t Manager, Main;
 
-/* Boolean 1 if manager thread is active, otherwise 0 */
-unsigned int managerThread_isActive = 0;
+/* Boolean 1 if manager thread is active, otherwise 0 as globals
+are initialized to by default*/
+unsigned int manager_active;
 
 /* End global variable declarations. */
 
-/* this function carries out the manager thread responsibilities */
-int my_pthread_manager() {
-	//Check MLPQ
-	//Check Run Queue & pick new context
-	//Switch context to Main
-	return 0;
-}
+/* my_pthread and mutex function implementations */
 
 /* create a new thread */
 int my_pthread_create(my_pthread_t * thread, pthread_attr_t * attr, void *(*function)(void*), void * arg) {
 	//check that manager thread exists	
 	//init if it does not
-	if (managerThread_isActive != 1) {
+	if (manager_active != 1) {
 		init_manager_thread();
-		managerThread_isActive = 1;
 	}
 	//get the manager thread
 	getcontext(&Manager);
@@ -239,19 +235,33 @@ int my_pthread_mutex_destroy(my_pthread_mutex_t *mutex) {
 
 /* Essential support functions go here (e.g: manager thread) */
 
+/* this function carries out the manager thread responsibilities */
+//TODO @all: Implement and document this
+int my_pthread_manager() {
+	//Check MLPQ
+	//Check Run Queue & pick new context
+	//Switch context to Main
+	return 0;
+}
+
 /* TODO @joe, alex: Implement and document this. */
 int init_manager_thread() {
-	getcontext(&Manager);
-	Manager.uc_link = 0; //No other context will resume after this one
-	Manager.uc_sigmask = 0; //No signals
-	Manager.uc_stack = malloc(MEM); //New stack using this much memory
-	makecontext(&Manager, (void*)&my_pthread_manager, 0);
-	
-	//initialize globals
-	MLPQ = NULL; //@All: set this to the appropriate 5 or 10 levels here
+	//initialize global variables
+	//first, initialize array for MLPQ
+	pnode *temp[levels];
+	MLPQ = temp;
+	//then initialize tcbList, thread counter, and runQueue
 	tcbList = NULL;
-	threadsSoFar = 0;
+	threadsSoFar = 0; // note: already initialized to 0, but just being sanitary
 	runQueue = NULL;
+	//set manager_active to 1
+	manager_active = 1;
+	//actually set up and make the context for manager thread
+	getcontext(&Manager);
+	Manager.uc_link = 0; //no other context will resume after the manager leaves
+	Manager.uc_sigmask = 0; //no signals being intentionally blocked
+	Manager.uc_stack = malloc(MEM); //new stack using specified stack size
+	makecontext(&Manager, (void*)&my_pthread_manager, 0);
 	
 	return 0;
 }

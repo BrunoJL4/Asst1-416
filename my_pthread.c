@@ -7,7 +7,7 @@
 // iLab Server:
 
 #include "my_pthread_t.h"
-#define MEM 64000 //Amount of memory used for a new context stack
+#define MEM 16384 //Amount of memory used for a new context stack
 
 /* Additional ucontext funtion info to help out */
 //getcontext(context) - initializes the context or explicitly gets the context specified
@@ -120,14 +120,14 @@ int my_pthread_create(my_pthread_t * thread, pthread_attr_t * attr, void *(*func
 	stack_t stack = malloc(MEM);
 	unsigned int timeSlices = 0;
 	ucontext_t T;
-		getcontext(&T);
-		T.uc_link = Manager; //Manager thread will run after this thread
-		T.uc_sigmask = 0;
-		T.uc_stack = stack;
-		makecontext(&T, (void*)&function, 0);  //@All: take args for function and # args to translate into this method call
+	getcontext(&T);
+	T.uc_link = Manager; //Manager thread will run after this thread
+	T.uc_sigmask = 0;
+	T.uc_stack = stack;
+	makecontext(&T, (void*)&function, 0);  //@All: take args for function and # args to translate into this method call
 	//Check if this continues to get added to end of tcbList or if we need to use recycle stack
 	if (threadsSoFar >= maxNumThreads) {
-		//Check run queue, return -1 if there is no more room for threads
+		// Check recyclableQueue, return NULL if there are no available thread ID's
 		if (recyclableQueue == NULL) { return -1; }
 		//find an open id
 		pnode *ptr = recyclableQueue;

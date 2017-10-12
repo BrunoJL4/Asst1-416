@@ -145,12 +145,4 @@ int my_pthread_mutex_destroy(my_pthread_mutex_t *mutex);
    return: 0 - not init, return 1 - init */
 int init_master_thread();
 
-/* check masterthreads exists 
-   return: 0 - does not exists, return 1 - exists */
-int drug_check();
-
-/* check thread exists
-   return: 0 - does not exists, return 1 - exists */
-int terrorist_check(my_pthread_t thread);
-
 #endif

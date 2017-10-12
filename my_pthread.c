@@ -7,6 +7,13 @@
 // iLab Server:
 
 #include "my_pthread_t.h"
+#define MEM 64000 //Amount of memory used for a new context stack
+
+/* Additional ucontext funtion info to help out */
+//getcontext(context) - initializes the context or explicitly gets the context specified
+//setcontext(context) - explicitly sets the current context to context specified
+//makecontext(context, fn, #args) - assigns specified context to a function
+//swapcontext(context1, context2) - assigns current context to first arg, then runs second arg context
 
 /* Define global variables here. */
 
@@ -72,7 +79,8 @@ pnode *recyclableQueue;
 /* Quanta length; by default should be 25ms.*/
 unsigned int quantaLength;
 
-/* Number of threads created so far.*/
+/* Number of threads created so far.
+This will be initialized to 0 when the manager thread is initialized. */
 unsigned int threadsSoFar;
 
 /* Maximum number of threads; used to determine the space in
@@ -80,15 +88,59 @@ tcbList, and is compared by the manager thread to threadsSoFar
 to see if it needs to start using recyclableQueue. */
 unsigned int maxNumThreads;
 
+/* contexts */
+ucontext_t Manager, Main;
+
+/* Boolean 1 if manager thread is active, otherwise 0 */
+unsigned int managerThread_isActive = 0;
 
 /* End global variable declarations. */
 
+/* this function carries out the manager thread responsibilities */
+int my_pthread_manager() {
+	//Check MLPQ
+	//Check Run Queue & pick new context
+	//Switch context to Main
+	return 0;
+}
+
 /* create a new thread */
 int my_pthread_create(my_pthread_t * thread, pthread_attr_t * attr, void *(*function)(void*), void * arg) {
-	//call drug_check() - check that masterthread exists	
-	//if doesn't exist
-	//call master_thread() - master thread is the 'gatekeeper' & schedules performing maintenence 		
-	return 0;
+	//check that masterthread exists	
+	//init if it does not
+	if (managerThread_isActive != 1) {
+		init_master_thread();
+		managerThread_isActive = 1;
+	}
+	//get the manager thread
+	getcontext(&Manager);
+	//add this new thread to the tcb
+	threadStatus status = THREAD_READY;
+	my_pthread_t id = threadsSoFar;
+	stack_t stack = malloc(MEM);
+	unsigned int timeSlices = 0;
+	ucontext_t T;
+		getcontext(&T);
+		T.uc_link = Manager; //Manager thread will run after this thread
+		T.uc_sigmask = 0;
+		T.uc_stack = stack;
+		makecontext(&T, (void*)&function, 0);  //@All: take args for function and # args to translate into this method call
+	//Check if this continues to get added to end of tcbList or if we need to use recycle stack
+	if (threadsSoFar >= maxNumThreads) {
+		//Check run queue, return -1 if there is no more room for threads
+		if (recyclableQueue == NULL) { return -1; }
+		//find an open id
+		pnode *ptr = recyclableQueue;
+		recyclableQueue = recyclableQueue.next;
+		id = ptr.tid;
+	}
+	tcbList[threadsSoFar] = { status, id, stack, T, timeSlices }
+	//@All: adjust this on the priority list so that the manager thread knows where to put this on the run queue
+	//call master_thread() - master thread is the 'gatekeeper' & schedules performing maintenence 	
+	swapcontext(&Main, &Manager);
+	
+	//returns the new thread id on success
+	return id; 
 }
 
 /* give CPU pocession to other user level threads voluntarily */
@@ -177,15 +229,17 @@ int my_pthread_mutex_destroy(my_pthread_mutex_t *mutex) {
 
 /* TODO @joe, alex: Implement and document this. */
 int init_master_thread() {
-	return 0;
-}
-
-/* TODO @joe, alex: Implement and document this. */
-int terrorist_check() {
-	return 0;
-}
-
-/* TODO @joe, alex: Implement and document this. */
-int drug_check() {
+	getcontext(&Manager);
+	Manager.uc_link = 0; //No other context will resume after this one
+	Manager.uc_sigmask = 0; //No signals
+	Manager.uc_stack = malloc(MEM); //New stack using this much memory
+	makecontext(&Manager, (void*)&my_pthread_manager, 0);
+	
+	//initialize globals
+	MLPQ = NULL; //@All: set this to the appropriate 5 or 10 levels here
+	tcbList = NULL;
+	threadsSoFar = 0;
+	runQueue = NULL;
+	
 	return 0;
 }

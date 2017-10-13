@@ -258,6 +258,19 @@ int my_pthread_manager() {
 	return 0;
 }
 
+/* this function is the helper function which performs most of
+the work for the manager thread's run queue. */
+//TODO @all: implement and document this.
+//TODO @all: decide what the parameters are, if any.
+void runQueueHelper() {
+	return 0;
+}
+
+//TODO @all: implement signal handler for SIGALRM/SIGVTALRM
+//that comes up when the manager thread calls setitimer()
+//and the running thread runs out of time slices.
+//Do as described in the documentation.
+
 /* TODO @joe, alex: Implement and document this. */
 int init_manager_thread() {
 	//initialize global variables

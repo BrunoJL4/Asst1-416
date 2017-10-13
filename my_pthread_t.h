@@ -68,6 +68,11 @@ typedef struct threadControlBlock {
 	maintenance cycle.*/
 	unsigned int timeSlices;
 
+	/* The thread's current priority. 0 by default, but priority
+	level is decreased (the priority going from 0 to 1, 1 to 2,
+	and so on) as the thread is interrupted/preempted more often*/
+	unsigned int priority;
+
 } tcb; 
 
 
@@ -148,8 +153,14 @@ int my_pthread_mutex_destroy(my_pthread_mutex_t *mutex);
    return: 0 - not init, return 1 - init */
 int init_master_thread();
 
+int my_pthread_manager();
+
 /* Creates a new tcb instance. */
 tcb *createTcb(threadStatus status, my_pthread_t id, stack_t stack, 
 	ucontext_t context, unsigned int timeSlices);
+
+void runQueueHelper();
+
+//TODO @all: add macro for run queue alarm signal handler.
 
 #endif

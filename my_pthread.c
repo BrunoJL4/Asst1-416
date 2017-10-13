@@ -291,6 +291,8 @@ tcb *createTcb(threadStatus status, my_pthread_t tid, stack_t stack,
 	ret->stack = stack;
 	ret->context = context;
 	ret->timeSlices = timeSlices;
+	// set priority to 0 by default
+	ret->priority = 0;
 	// return a pointer to the instance
 	return ret;
 }

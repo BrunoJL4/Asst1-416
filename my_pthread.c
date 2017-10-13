@@ -277,6 +277,9 @@ int init_manager_thread() {
 	//first, initialize array for MLPQ
 	pnode *temp[levels];
 	MLPQ = temp;
+	//next initialize quantaLength to 25 (as in 25ms) for setitimer
+	//call in runQueueHelper()
+	quantaLength = 25;
 	//then initialize tcbList, thread counter, and runQueue
 	tcbList = NULL;
 	threadsSoFar = 0; // note: already initialized to 0, but just being sanitary

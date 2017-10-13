@@ -169,15 +169,30 @@ int my_pthread_create(my_pthread_t * thread, pthread_attr_t * attr, void *(*func
 
 /* give CPU pocession to other user level threads voluntarily */
 int my_pthread_yield() {
-	return 0;
+	
+    //task goes to end of tasks of jobs
+    //switch context to manager, manager should choose next thread to run
+    
+    
+    return 0;
 }
 
 /* terminate a thread */
+//thread that calls join is dependent on target thread, sooo....
+//this thread (target thread) should be explicitly calling pthread_exit, providing it is joined
+//value_ptr: value that pthread_join caller will be using to complete task
 void my_pthread_exit(void *value_ptr) {
     
-    //set value_ptr
-    //set thread status
-    //take job off MLPQ
+    //is thread joined?
+    //if not
+        //implicit behaviour
+        /* Performing  a  return  from the start function of any thread other than
+        the main thread results in an implicit call  to  pthread_exit(),  using
+        the function's return value as the thread's exit status. /*
+    
+    //if yes,
+        //set thread status to THREAD_FINISHED
+        //switch to manager, manager should take job off runtime during maintenence
     
 }
 
@@ -189,7 +204,7 @@ int my_pthread_join(my_pthread_t thread, void **value_ptr) {
     
     /* ACTUAL WORK */
     
-    //target thread HAS TO FINISH RUNNING before caller gets anymore cpu time - how to implement?
+    //target thread HAS TO FINISH RUNNING before caller gets anymore cpu time
     //i think above requires a context switch to target thread at this point
     
     //if(Target thread was cancelled)

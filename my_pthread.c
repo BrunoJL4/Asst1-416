@@ -93,6 +93,18 @@ unsigned int maxNumThreads;
 /* contexts */
 ucontext_t Manager, Main;
 
+/* info on current thread */
+
+//indicates whether the current thread has explicitly called
+//pthread_exit(). 0 if false, 1 if true. used in manager thread
+//to determine whether one calls pthread_exit()'s functionality
+//on a thread that didn't explicitly call it.
+unsigned int current_exited;
+
+//ID of the currently-running thread. -1 if manager,
+//if >=0 then some thread.
+unsigned int current_thread;
+
 /* Boolean 1 if manager thread is active, otherwise 0 as globals
 are initialized to by default*/
 unsigned int manager_active;
@@ -106,6 +118,7 @@ int my_pthread_create(my_pthread_t * thread, pthread_attr_t * attr, void *(*func
 	//check that manager thread exists	
 	//init if it does not
 	if (manager_active != 1) {
+		current_thread = -1;
 		init_manager_thread();
 	}
 	//get the manager thread
@@ -163,6 +176,7 @@ int my_pthread_yield() {
 void my_pthread_exit(void *value_ptr) {
     
     //set value_ptr
+    //set thread status
     //take job off MLPQ
     
 }

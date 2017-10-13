@@ -26,7 +26,8 @@ enum threadStatus {
 	THREAD_READY = 1,
 	THREAD_BLOCKED = 2
 	THREAD_WAITING = 3,
-	THREAD_DONE = 4
+	THREAD_DONE = 4,
+	THREAD_INTERRUPTED = 5
 };
 
 /* Our own enums describing mutex lock status. */

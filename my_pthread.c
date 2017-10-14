@@ -9,6 +9,8 @@
 #include "my_pthread_t.h"
 #define MEM 16384 //Amount of memory used for a new context stack
 #define NUM_PRIORITY_LEVELS 5 //number of priority levels
+#define MAX_NUM_THREADS 64 //max number of threads allowed at once
+#define QUANTA_LENGTH 25
 
 /* Additional ucontext funtion info to help out */
 //getcontext(context) - initializes a blank context or explicitly gets the context specified
@@ -82,7 +84,7 @@ This will be initialized to 0 when the manager thread is initialized. */
 unsigned int threadsSoFar;
 
 /* contexts */
-ucontext_t Manager, Main;
+ucontext_t Manager, Main, CurrentContext;
 
 /* info on current thread */
 
@@ -105,29 +107,40 @@ unsigned int manager_active;
 /* my_pthread and mutex function implementations */
 
 /* create a new thread */
+//TODO @alex: change last two parameters to address actual params of pthread_create()...
+//correctly reference function pointer, number of args, and args
 int my_pthread_create(my_pthread_t * thread, pthread_attr_t * attr, void *(*function)(void*), void * arg) {
 	//check that manager thread exists	
 	//init if it does not
 	if (manager_active != 1) {
 		init_manager_thread();
 	}
-	//get the manager thread
-	getcontext(&Manager);
-	//add this new thread to the tcb
+	//set information for new child thread's context
+	//thread should be ready to run by default
 	threadStatus status = THREAD_READY;
 	my_pthread_t tid = threadsSoFar;
+	//allocating MEM bytes for the stack
 	stack_t stack = malloc(MEM);
+	//time slices is 0 by default
 	unsigned int timeSlices = 0;
 	ucontext_t context;
+	//initialize context, fill it in with current
+	//context's information
 	getcontext(&context);
-	//threads should always link back to manager when stopped/done
+	//assign context's members
+	//any child context should link back to Manager
+	//upon finishing execution/being interrupted or preempted
 	context.uc_link = Manager;
+	//TODO @bruno: figure out what signals to actually mask, if any
 	context.uc_sigmask = 0;
+	//set context's stack to our allocated stack
 	context.uc_stack = stack;
-	makecontext(&context, (void*)&function, 0);  //@All: take args for function and # args to translate into this method call
-	//check if this continues to get added to end of tcbList or if we need to use recycle stack
-	if (threadsSoFar >= maxNumThreads) {
-		//check recyclableQueue, return NULL if there are no available thread ID's
+	//TODO @alex: figure out how to properly reference function pointer, # of args, and args
+	//replace context's function with the input function for the child thread
+	makecontext(&context, (void*)&function, 0);
+	//check if we've exceeded max number of threads
+	if (threadsSoFar >= MAX_NUM_THREADS) {
+		//if so, check recyclableQueue, return -1 if there are no available thread ID's
 		if (recyclableQueue == NULL) {
 			printf("No more available thread ID's!\n"); 
 			return -1; 
@@ -140,21 +153,27 @@ int my_pthread_create(my_pthread_t * thread, pthread_attr_t * attr, void *(*func
 		//free the pnode for the recycled ID
 		free(ptr);
 		//make a new TCB from the gathered information
-		tcb *newTcb = createTcb(status, id, stack, context, timeSlices);
+		tcb *newTcb = createTcb(status, tid, stack, context, timeSlices);
 		//change the tcb instance in tcbList[id] to this tcb
 		tcbList[tid] = newTcb;
 		return tid;
 	}
 	// if still using new ID's, just use threadsSoFar as the index and increment it
-	tcb *newTcb = createTcb(status, id, stack, context, timeSlices);
+	tcb *newTcb = createTcb(status, tid, stack, context, timeSlices);
+	//add the new tcb to the tcbList at the cell corresponding to its ID
 	tcbList[threadsSoFar] = newTcb;
+	//we've added another thread, so increase this
 	threadsSoFar ++;
-	//@All: adjust this on the priority list so that the manager thread knows where to put this on the run queue
-	//call manager_thread() - manager thread is the 'gatekeeper' & schedules performing maintenence 	
-	swapcontext(&Main, &Manager);
+	//TODO @bruno: insert pnode with tid into Level 0 of MLPQ, at the very end...
+	//you should create a function called insertNewPnode() that does this, or something. 
+	//set CurrentContext to the context that called my_pthread_create()...this could be
+	//Main, or it could also be a child thread that's calling my_pthread_create().
+	//also swap to Manager, 
+	//TODO @bruno: Figure out how this shit works	
+	swapcontext(&CurrentContext, &Manager);
 	
 	//returns the new thread id on success
-	return id; 
+	return tid; 
 }
 
 /* give CPU pocession to other user level threads voluntarily */
@@ -280,17 +299,23 @@ void runQueueHelper() {
 int init_manager_thread() {
 	//Get the current context (this is the main context)
 	getcontext(&Main);
+	//Point its uc_link to Manager (Manager is its "parent thread")
+	Main.uc_link = Manager;
 	//initialize tcb for main
 	tcb *newTcb = createTcb(THREAD_READY, 0, Main.stack, Main);
-	
-	tcbList[0] = newTcb;
-	threadsSoFar = 1;
-	//initialize global variables
+	//initialize global variables before adding Main's thread
+	//to the manager
 	//first, initialize array for MLPQ
 	pnode *temp[NUM_PRIORITY_LEVELS];
 	MLPQ = temp;
-	//next initialize quantaLength to 25 (as in 25ms) for setitimer
-	quantaLength = 25;
+	//next, initialize tcbList
+	tcb *newTcbList[MAX_NUM_THREADS];
+	tcbList = newTcbList;
+	//now add pnode with Main thread's ID (0) to MLPQ
+	pnode *mainNode = createPnode(0);
+	MLPQ[0] = mainNode;
+	tcbList[0] = newTcb;
+	threadsSoFar = 1;
 	runQueue = NULL;
 	//set manager_active to 1
 	manager_active = 1;
@@ -317,6 +342,14 @@ tcb *createTcb(threadStatus status, my_pthread_t tid, stack_t stack,
 	// set priority to 0 by default
 	ret->priority = 0;
 	// return a pointer to the instance
+	return ret;
+}
+
+/* Returns a pointer to a new pnode instance. */
+pnode *createPnode(my_pthread_t tid) {
+	pnode *ret = (pnode*) malloc(sizeof(pnode));
+	ret->tid = tid;
+	ret->next = NULL;
 	return ret;
 }
 

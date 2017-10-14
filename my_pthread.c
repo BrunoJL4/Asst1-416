@@ -107,8 +107,6 @@ unsigned int manager_active;
 /* my_pthread and mutex function implementations */
 
 /* create a new thread */
-//TODO @alex: change last two parameters to address actual params of pthread_create()...
-//correctly reference function pointer, number of args, and args
 int my_pthread_create(my_pthread_t * thread, pthread_attr_t * attr, void *(*function)(void*), void * arg) {
 	//check that manager thread exists	
 	//init if it does not
@@ -135,9 +133,14 @@ int my_pthread_create(my_pthread_t * thread, pthread_attr_t * attr, void *(*func
 	context.uc_sigmask = 0;
 	//set context's stack to our allocated stack
 	context.uc_stack = stack;
-	//TODO @alex: figure out how to properly reference function pointer, # of args, and args
-	//replace context's function with the input function for the child thread
-	makecontext(&context, (void*)&function, 0);
+	//turns out that functions called through pthread always take 0 or 1 arguments
+	//therefore the functions called by the user must always take some type of struct (void *) 
+	//if they wish to pass multiple args
+	if (arg == NULL) {
+		makecontext(&context, (void*)&function, 0);
+	} else {
+		makecontext(&context, (void*)&function, 1, arg);
+	}
 	//check if we've exceeded max number of threads
 	if (threadsSoFar >= MAX_NUM_THREADS) {
 		//if so, check recyclableQueue, return -1 if there are no available thread ID's

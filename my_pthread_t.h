@@ -13,6 +13,7 @@
 /* include lib header files that you need here: */
 #include <ucontext.h>
 #include <unistd.h>
+#include <signal.h>
 #include <sys/syscall.h>
 #include <sys/time.h>
 #include <sys/types.h>
@@ -194,6 +195,12 @@ that it is the last node in that level's list (or first, if no others12
 are present). Returns 0 on failure, 1 on success. */
 int insertPnode(pnode *input, unsigned int level);
 
-//TODO @all: add macro for run queue alarm signal handler.
+/* Receives a TID as input, and checks to see if any other threads
+share the same stack as its context. If the stack is not being
+shared, then deallocate the stack. Returns 0 on failure,
+1 on success. */
+int checkAndDeallocateStack(my_pthread_t tid)
+
+//TODO @bruno: add macro for run queue alarm signal handler.
 
 #endif

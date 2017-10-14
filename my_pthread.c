@@ -317,37 +317,48 @@ int maintenancehelper(){
 	// for each thread in the run queue:
 	pnode *currPnode = runQueue;
 	while(currPnode != NULL) {
+		int currId = currPnode->currId;
+		tcb *currTcb = tcbList[currId];
 		// if a runQueue thread's status is THREAD_DONE:
-		if(currPnode->status == THREAD_DONE) {
-			// we see if its stack needs to be deallocated, by
-			// searching for the stack's pointer in any other
-			// active tcb in tcbList. if the stack is still being referenced,
-			// then don't deallocate it; otherwise, deallocate it.
-			// TODO @bruno: make helper function to check for
-			// and/or deallocate a finished thread's stack.
-
-			// after the stack has been deallocated (or not), deallocate
-			// its tcb through tcbList, set tcbList[id] to NULL,
-			// and then deallocate its pnode in the run queue.
+		if(currTcb->status == THREAD_DONE) {
+			// check for any threads that share the thread's
+			// stack, deallocate the stack if none share it.
+			checkAndDeallocateStack(currId);
+			// deallocate the context
+			free(currTcb->context);
+			// then deallocate its tcb through tcbList
+			free(currTcb);
+			// set tcbList[tid] to NULL
+			tcbList[currId] = NULL;
+			// then deallocate its pnode in the run queue while
+			// moving currPnode to the next node.
+			pnode *temp = currPnode;
+			currPnode = currPnode->next;
+			free(temp);
 		}
-		else if(currPnode->status == THREAD_INTERRUPTED){
 		// if a runQueue thread's status is THREAD_INTERRUPTED:
+		else if(currPnode->status == THREAD_INTERRUPTED){
 			// we insert the thread back into the MLPQ but at one lower
 			// priority level, also changing its priority member.
 			// then change its status to READY.
+			currTcb->priority ++;
+			pnode *temp = currPnode;
+			currPnode = currPnode->next;
+			insertPnode(temp, currTcb->priority);
+			currTcb->status = THREAD_READY;
 		}
-		else if(currPnode->status == THREAD_WAITING) {
 		// if a runQueue thread's status is THREAD_WAITING:
+		else if(currPnode->status == THREAD_WAITING) {
 			// put the thread into the MLPQ at the same priority level,
 			// so that it can resume in subsequent runs when it's
 			// set to READY as the thread it's waiting on finishes
 			// execution.
+			pnode *temp = currPnode;
+			currPnode = currPnode->next;
+			insertPnode(temp, currTcb->priority);
 		}
 		// if a runQueue thread's status isn't any of the three above:
 		else{
-			// print an error message and return, because there shouldn't
-			// be any threads with other statuses than those two
-			// when the MLPQ is finished.
 			printf("Error! Thread in runQueue found to have invalid status
 				during maintenance cycle.\n");
 			return 0;
@@ -363,6 +374,14 @@ int maintenancehelper(){
 	// a "valid" thread is one that is READY; any other thread status
 	// is invalid and not ready to go in the run queue.
 	int timeSlicesLeft = 20;
+	int i;
+	for(i = 0; i < NUM_PRIORITY_LEVELS; i++) {
+		// go through this level's queue, if at all applicable.
+		pnode *currPnode = MLPQ[i];
+		while(currPnode != NULL) {
+			// 
+		}
+	}
 
 	// when runQueue has been populated with valid, ready threads,
 	// return 1 to indicate success.
@@ -448,7 +467,6 @@ pnode *createPnode(my_pthread_t tid) {
 	return ret;
 }
 
-
 int insertPnode(pnode *input, unsigned int level) {
 	if(MLPQ == NULL) {
 		return 0;
@@ -477,5 +495,45 @@ int insertPnode(pnode *input, unsigned int level) {
 	// input->next is set to NULL (in case we inserted a thread
 	// from the runQueue)
 	input->next = NULL;
+	return 1;
+}
+
+int checkAndDeallocateStack(my_pthread_t tid) {
+	// check if tcbList is NULL
+	if(tcbList == NULL) {
+		printf("Error! tcbList is NULL for checkAndDeallocateStack.\n");
+		return -1;
+	}
+	// check if given a tid pointing to a valid tcb
+	if(tcbList[tid] == NULL) {
+		printf("Error! Given tid is NULL for checkAndDeallocateStack.\n");
+		return -1;
+	}
+	// grab stack pointer from stack_t member of thread's tcb
+	void *stack_ptr = tcbList[tid]->stack.ss_sp;
+	// set flag to indicate that a thread shares this stack.
+	// will be set to 1 if we find one that does.
+	int stackShared = 0;
+	int i;
+	for(i = 0; i < tcbList.length; i++) {
+		// for any non-NULL tcb in the tcbList, that doesn't
+		// share our input's TID
+		if( (tcbList[i] != NULL) && (i != tid) ){
+			// compare its stack's ss_sp member to stack_ptr.
+			// if they share the same address (reference the same stack):
+			if(tcbList[i]->stack.ss_sp == stack_ptr) {
+				// mark stackShared as 1.
+				stackShared = 1;
+			}
+		}
+	}
+	// if after running this loop, we haven't found a thread that shares
+	// the stack, we deallocate the stack and return successfully.
+	if(stackShared == 0) {
+		// deallocate stack
+		free(tcbList[tid]->stack.ss_sp)
+		return 1;
+	}
+	// otherwise, return.
 	return 1;
 }

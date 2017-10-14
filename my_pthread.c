@@ -102,6 +102,10 @@ unsigned int current_thread;
 are initialized to by default*/
 unsigned int manager_active;
 
+/* Status of currently-running thread. 
+TODO @bruno: determine if this is needed. */
+threadStatus currentStatus;
+
 /* End global variable declarations. */
 
 /* my_pthread and mutex function implementations */
@@ -285,10 +289,48 @@ int my_pthread_mutex_destroy(my_pthread_mutex_t *mutex) {
 /* this function carries out the manager thread responsibilities */
 //TODO @bruno: Implement and document this
 int my_pthread_manager() {
-	//Check MLPQ
-	//Check Run Queue & pick new context
-	//Switch context to Main
+	// check if manager is still considered "active"
+	while(manager_active == 1) {
+		// perform maintenance cycle
+		maintenanceHelper();
+		// perform run queue functions
+		runQueueHelper();
+	}
+	// TODO @bruno: when manager thread no longer
+	// active, deallocate its resources... maybe
+	// make helper function?
 	return 1;
+}
+
+
+/* Helper function which performs most of the work for
+the manager thread's maintenance cycle. */
+void maintenancehelper(){
+	// for each thread in the run queue:
+
+		// if a runQueue thread's status is THREAD_DONE:
+			// we see if its stack needs to be deallocated, by
+			// searching for the stack's pointer in any other
+			// active tcb in tcbList. if the stack is still being referenced,
+			// then don't deallocate it; otherwise, deallocate it.
+			// TODO @bruno: make helper function to check for
+			// and/or deallocate a finished thread's stack.
+
+			// after the stack has been deallocated (or not), deallocate
+			// its tcb through tcbList, set tcbList[id] to NULL,
+			// and then deallocate its pnode in the run queue.
+
+		// if a runQueue thread's status is THREAD_INTERRUPTED:
+			// we insert the thread back into the MLPQ but at one lower
+			// priority level, also changing its priority member.
+
+		// if a runQueue thread's status isn't any of the two above:
+			// print an error message and return, because there shouldn't
+			// be any other status thread left after the runQueue has
+			// been finished.
+
+	// run queue 
+
 }
 
 
@@ -299,13 +341,6 @@ the work for the manager thread's run queue. */
 void runQueueHelper() {
 
 	return 1;
-}
-
-
-/* Helper function which performs most of the work for
-the manager thread's maintenance cycle. */
-void maintancehelper(){
-
 }
 
 
@@ -324,6 +359,13 @@ int init_manager_thread() {
 	//next, initialize tcbList
 	tcb *newTcbList[MAX_NUM_THREADS];
 	tcbList = newTcbList;
+	// initialize all pointers in tcbList to NULL by default.
+	// convention will be that any non-active tcbList cell is
+	// set to NULL for ease of linear search functions.
+	int i;
+	for(i = 0; i < tcbList.length; i++) {
+		tcbList[i] = NULL;
+	}
 	//now add pnode with Main thread's ID (0) to MLPQ
 	pnode *mainNode = createPnode(0);
 	MLPQ[0] = mainNode;
@@ -393,5 +435,8 @@ int insertPnode(pnode *input, unsigned int level) {
 	}
 	// set temp->next to input
 	temp->next = input;
+	// input->next is set to NULL (in case we inserted a thread
+	// from the runQueue)
+	input->next = NULL;
 	return 1;
 }

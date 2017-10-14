@@ -376,19 +376,30 @@ int maintenancehelper(){
 		// formula for priority levels v. time slices: 2^(level)
 		int numSlices = round(pow(2, i)); // round() used to turn pow() to int val
 		// if we don't have enough timeSlices left to distribute to any node in
-		// the current level, break.
+		// the current level, break (prevents searching further levels)
 		if(numSlices > timeSlicesLeft) {
 			break;
 		}
 		// go through this level's queue, if at all applicable.
 		pnode *currPnode = MLPQ[i];
 		while(currPnode != NULL) {
+			// don't search the current level further if not enough
+			// time slices are left.
+			if(numSlices > timeSlicesLeft) {
+				break;
+			}
+			if(numSlices)
 			my_pthread_t currId = currPnode->tid;
 			pnode *temp = currPnode;
 			tcb *currTcb = tcbList[currPnode->tid];
-			// if the current thread is ready to run:
+			// if the current pnode's thread is ready to run:
 			if(currTcb->status == THREAD_READY) {
-				// 
+				// make a temp ptr to the current pnode.
+				// delink the current pnode from the current level's queue,
+				// linking the previous and next instances (if any, if any)
+				// add the temp ptr to the end of the runQueue.
+				// point its next member to NULL./
+				// change its corresponding thread's status to THREAD_RUNNING.
 			}
 			// otherwise, just keep going
 			else{
@@ -399,6 +410,7 @@ int maintenancehelper(){
 
 	// when runQueue has been populated with valid, ready threads,
 	// return 1 to indicate success.
+	return 1;
 
 }
 

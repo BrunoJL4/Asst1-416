@@ -82,7 +82,7 @@ typedef struct threadControlBlock {
 	saved if this thread were to join() another thread. The joined 
 	child thread would reference its waitingThread member, find this
 	thread's ID, and change valuePtr accordingly. NULL by default, or
-	if no valuePtr is currently being stored. */
+	if no valuePtr is currently being stored.*/
 	void *valuePtr;
 
 } tcb; 
@@ -163,23 +163,26 @@ int my_pthread_mutex_destroy(my_pthread_mutex_t *mutex);
 
 /* Initializes the manager thread, with the user's calling function
 being saved as a child thread which is itself managed by the 
-manager thread.*/
+manager thread. Returns 0 on failure, 1 on success.*/
 int init_master_thread();
 
 /* Carries out the manager thread responsibilities.
 Makes use of runQueueHelper() and maintenanceHelper() in order
-to make debugging more modular. */
+to make debugging more modular. Returns 0 on failure, 1
+on success. */
 int my_pthread_manager();
 
 /* This function is the helper function which performs most of
-the work for the manager thread's run queue. */
-void runQueueHelper();
+the work for the manager thread's run queue. Returns 0 on failure,
+1 on success.*/
+int runQueueHelper();
 
 /* Helper function which performs most of the work for
-the manager thread's maintenance cycle. */
-void maintancehelper();
+the manager thread's maintenance cycle. Returns 0 on failure,
+1 on success.*/
+int maintancehelper();
 
-/* Creates a new tcb instance. */
+/* Returns a pointer to a new tcb instance. */
 tcb *createTcb(threadStatus status, my_pthread_t id, stack_t stack, 
 	ucontext_t context, unsigned int timeSlices);
 
@@ -188,7 +191,7 @@ pnode *createPnode(my_pthread_t tid);
 
 /* Inserts a given pnode into a given level of the MLPQ, such
 that it is the last node in that level's list (or first, if no others12
-are present). */
+are present). Returns 0 on failure, 1 on success. */
 int insertPnode(pnode *input, unsigned int level);
 
 //TODO @all: add macro for run queue alarm signal handler.

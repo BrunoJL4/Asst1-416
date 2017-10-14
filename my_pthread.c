@@ -286,15 +286,22 @@ int my_pthread_mutex_destroy(my_pthread_mutex_t *mutex) {
 //and the running thread runs out of time slices.
 //Do as described in the documentation.
 
-/* this function carries out the manager thread responsibilities */
+/* Carries out the manager thread responsibilities.
+Returns 0 on failure, 1 on success. */
 //TODO @bruno: Implement and document this
 int my_pthread_manager() {
 	// check if manager is still considered "active"
 	while(manager_active == 1) {
 		// perform maintenance cycle
-		maintenanceHelper();
+		if(!maintenanceHelper()) {
+			printf("Error in maintenanceHelper!\n");
+			return 0;
+		}
 		// perform run queue functions
-		runQueueHelper();
+		if(!runQueueHelper()) {
+			printf("Error in runQueueHelper!\n");
+			return 0;
+		}
 	}
 	// TODO @bruno: when manager thread no longer
 	// active, deallocate its resources... maybe
@@ -304,11 +311,14 @@ int my_pthread_manager() {
 
 
 /* Helper function which performs most of the work for
-the manager thread's maintenance cycle. */
-void maintenancehelper(){
+the manager thread's maintenance cycle. Returns 0 on failure,
+1 on success.*/
+int maintenancehelper(){
 	// for each thread in the run queue:
-
+	pnode *currPnode = runQueue;
+	while(currPnode != NULL) {
 		// if a runQueue thread's status is THREAD_DONE:
+		if(currPnode->status == THREAD_DONE) {
 			// we see if its stack needs to be deallocated, by
 			// searching for the stack's pointer in any other
 			// active tcb in tcbList. if the stack is still being referenced,
@@ -319,39 +329,52 @@ void maintenancehelper(){
 			// after the stack has been deallocated (or not), deallocate
 			// its tcb through tcbList, set tcbList[id] to NULL,
 			// and then deallocate its pnode in the run queue.
-
+		}
+		else if(currPnode->status == THREAD_INTERRUPTED){
 		// if a runQueue thread's status is THREAD_INTERRUPTED:
 			// we insert the thread back into the MLPQ but at one lower
 			// priority level, also changing its priority member.
 			// then change its status to READY.
-
+		}
+		else if(currPnode->status == THREAD_WAITING) {
 		// if a runQueue thread's status is THREAD_WAITING:
 			// put the thread into the MLPQ at the same priority level,
 			// so that it can resume in subsequent runs when it's
 			// set to READY as the thread it's waiting on finishes
 			// execution.
-
+		}
 		// if a runQueue thread's status isn't any of the three above:
+		else{
 			// print an error message and return, because there shouldn't
 			// be any threads with other statuses than those two
 			// when the MLPQ is finished.
+			printf("Error! Thread in runQueue found to have invalid status
+				during maintenance cycle.\n");
+			return 0;
+		}
+	}
 
-	// run queue should be set to NULL at this point.
+	// runQueue should be set to NULL at this point.
+	runQueue = NULL;
 
 	// go through MLPQ, starting at highest priority level and going
 	// down until we've given out time slices, putting valid threads
 	// into the run queue and setting their time slices accordingly.
 	// a "valid" thread is one that is READY; any other thread status
 	// is invalid and not ready to go in the run queue.
+	int timeSlicesLeft = 20;
+
+	// when runQueue has been populated with valid, ready threads,
+	// return 1 to indicate success.
 
 }
 
 
 /* this function is the helper function which performs most of
-the work for the manager thread's run queue. */
+the work for the manager thread's run queue. Returns 0 on failure,
+1 on success. */
 //TODO @bruno: implement and document this.
-//TODO @bruno: decide what the parameters are, if any.
-void runQueueHelper() {
+int runQueueHelper() {
 
 	return 1;
 }
@@ -398,7 +421,6 @@ int init_manager_thread() {
 }
 
 
-/* Returns a pointer to a new tcb instance. */
 tcb *createTcb(threadStatus status, my_pthread_t tid, stack_t stack, 
 	ucontext_t context)
 	// allocate memory for tcb instance
@@ -413,7 +435,7 @@ tcb *createTcb(threadStatus status, my_pthread_t tid, stack_t stack,
 	// waitingThread is -1 by default
 	ret->waitingThread = -1;
 	// valuePtr is NULL by default
-	
+	ret->valuePtr = NULL;
 	// return a pointer to the instance
 	return ret;
 }
@@ -429,13 +451,13 @@ pnode *createPnode(my_pthread_t tid) {
 
 int insertPnode(pnode *input, unsigned int level) {
 	if(MLPQ == NULL) {
-		return -1;
+		return 0;
 	}
 	if(input == NULL) {
-		return -2;
+		return 0;
 	}
 	if(level < 0 || level > NUM_PRIORITY_LEVELS) {
-		return -3;
+		return 0;
 	}
 	// error-checking done, begin insertion.
 	// first scenario: MLPQ[level] is NULL.

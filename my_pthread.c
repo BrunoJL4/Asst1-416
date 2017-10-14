@@ -8,6 +8,7 @@
 
 #include "my_pthread_t.h"
 #define MEM 16384 //Amount of memory used for a new context stack
+#define NUM_PRIORITY_LEVELS 5 //number of priority levels
 
 /* Additional ucontext funtion info to help out */
 //getcontext(context) - initializes a blank context or explicitly gets the context specified
@@ -32,8 +33,6 @@ the MLPQ to an array of an allocated length equal to the number
 of priority levels. 5 levels = 5 cells in the array.
 */
 pnode **MLPQ;
-
-unsigned int levels = 3;
 
 
 /* The array that stores pointers to all Thread Control Blocks.
@@ -290,7 +289,7 @@ void runQueueHelper() {
 int init_manager_thread() {
 	//initialize global variables
 	//first, initialize array for MLPQ
-	pnode *temp[levels];
+	pnode *temp[NUM_PRIORITY_LEVELS];
 	MLPQ = temp;
 	//next initialize quantaLength to 25 (as in 25ms) for setitimer
 	//call in runQueueHelper()

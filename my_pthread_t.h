@@ -11,6 +11,7 @@
 #define _GNU_SOURCE
 
 /* include lib header files that you need here: */
+#include <math.h>
 #include <ucontext.h>
 #include <unistd.h>
 #include <signal.h>
@@ -193,7 +194,7 @@ pnode *createPnode(my_pthread_t tid);
 /* Inserts a given pnode into a given level of the MLPQ, such
 that it is the last node in that level's list (or first, if no others12
 are present). Returns 0 on failure, 1 on success. */
-int insertPnode(pnode *input, unsigned int level);
+int insertPnodeMLPQ(pnode *input, unsigned int level);
 
 /* Receives a TID as input, and checks to see if any other threads
 share the same stack as its context. If the stack is not being

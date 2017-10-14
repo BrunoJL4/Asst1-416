@@ -165,7 +165,7 @@ int my_pthread_create(my_pthread_t * thread, pthread_attr_t * attr, void *(*func
 		tcbList[tid] = newTcb;
 		// insert a pnode containing the ID at Level 0 of MLPQ
 		pnode *node = createPnode(tid);
-		insertPnode(node, 0);
+		insertPnodeMLPQ(node, 0);
 		return tid;
 	}
 	// if still using new ID's, just use threadsSoFar as the index and increment it
@@ -174,7 +174,7 @@ int my_pthread_create(my_pthread_t * thread, pthread_attr_t * attr, void *(*func
 	tcbList[threadsSoFar] = newTcb;
 	// insert a pnode containing the ID at Level 0 of MLPQ
 	pnode *node = createPnode(tid);
-	insertPnode(node, 0);
+	insertPnodeMLPQ(node, 0);
 	// we've added another thread, so increase this
 	threadsSoFar ++;
 	//TODO @bruno: Figure out how this shit works	
@@ -317,7 +317,7 @@ int maintenancehelper(){
 	// for each thread in the run queue:
 	pnode *currPnode = runQueue;
 	while(currPnode != NULL) {
-		int currId = currPnode->currId;
+		my_pthread_t currId = currPnode->currId;
 		tcb *currTcb = tcbList[currId];
 		// if a runQueue thread's status is THREAD_DONE:
 		if(currTcb->status == THREAD_DONE) {
@@ -344,7 +344,7 @@ int maintenancehelper(){
 			currTcb->priority ++;
 			pnode *temp = currPnode;
 			currPnode = currPnode->next;
-			insertPnode(temp, currTcb->priority);
+			insertPnodeMLPQ(temp, currTcb->priority);
 			currTcb->status = THREAD_READY;
 		}
 		// if a runQueue thread's status is THREAD_WAITING:
@@ -355,7 +355,7 @@ int maintenancehelper(){
 			// execution.
 			pnode *temp = currPnode;
 			currPnode = currPnode->next;
-			insertPnode(temp, currTcb->priority);
+			insertPnodeMLPQ(temp, currTcb->priority);
 		}
 		// if a runQueue thread's status isn't any of the three above:
 		else{
@@ -365,9 +365,6 @@ int maintenancehelper(){
 		}
 	}
 
-	// runQueue should be set to NULL at this point.
-	runQueue = NULL;
-
 	// go through MLPQ, starting at highest priority level and going
 	// down until we've given out time slices, putting valid threads
 	// into the run queue and setting their time slices accordingly.
@@ -376,10 +373,27 @@ int maintenancehelper(){
 	int timeSlicesLeft = 20;
 	int i;
 	for(i = 0; i < NUM_PRIORITY_LEVELS; i++) {
+		// formula for priority levels v. time slices: 2^(level)
+		int numSlices = round(pow(2, i)); // round() used to turn pow() to int val
+		// if we don't have enough timeSlices left to distribute to any node in
+		// the current level, break.
+		if(numSlices > timeSlicesLeft) {
+			break;
+		}
 		// go through this level's queue, if at all applicable.
 		pnode *currPnode = MLPQ[i];
 		while(currPnode != NULL) {
-			// 
+			my_pthread_t currId = currPnode->tid;
+			pnode *temp = currPnode;
+			tcb *currTcb = tcbList[currPnode->tid];
+			// if the current thread is ready to run:
+			if(currTcb->status == THREAD_READY) {
+				// 
+			}
+			// otherwise, just keep going
+			else{
+				currPnode = currPnode->next;
+			}
 		}
 	}
 
@@ -467,7 +481,7 @@ pnode *createPnode(my_pthread_t tid) {
 	return ret;
 }
 
-int insertPnode(pnode *input, unsigned int level) {
+int insertPnodeMLPQ(pnode *input, unsigned int level) {
 	if(MLPQ == NULL) {
 		return 0;
 	}

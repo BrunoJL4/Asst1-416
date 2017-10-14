@@ -182,7 +182,7 @@ int runQueueHelper();
 /* Helper function which performs most of the work for
 the manager thread's maintenance cycle. Returns 0 on failure,
 1 on success.*/
-int maintancehelper();
+int maintanceHelper();
 
 /* Returns a pointer to a new tcb instance. */
 tcb *createTcb(threadStatus status, my_pthread_t id, stack_t stack, 

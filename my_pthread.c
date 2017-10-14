@@ -313,7 +313,7 @@ int my_pthread_manager() {
 /* Helper function which performs most of the work for
 the manager thread's maintenance cycle. Returns 0 on failure,
 1 on success.*/
-int maintenancehelper(){
+int maintenanceHelper(){
 	// for each thread in the run queue:
 	pnode *currPnode = runQueue;
 	while(currPnode != NULL) {
@@ -413,6 +413,10 @@ int maintenancehelper(){
 				temp->next = tempCurr;
 				// point its next member to NULL.
 				tempCurr->next = NULL;
+				// give the thread the appropriate number of time slices
+				currTcb->timeSlices = numSlices;
+				// subtract numSlices from timeSlicesLeft
+				timeSlicesLeft = timeSlicesLeft - numSlices;
 				// change its corresponding thread's status to THREAD_RUNNING.
 				currTcb->status = THREAD_RUNNING;
 			}

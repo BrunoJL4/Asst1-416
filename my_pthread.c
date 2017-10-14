@@ -187,9 +187,8 @@ int my_pthread_create(my_pthread_t * thread, pthread_attr_t * attr, void *(*func
 /* give CPU pocession to other user level threads voluntarily */
 int my_pthread_yield() {
 	
-    //task goes to end of tasks of jobs
-    //switch context to manager, manager should choose next thread to run
-    
+    pidList[currentThread].status = THREAD_YIELDED;
+    swapcontext(&CurrentContext, &Manager);
     
     return 0;
 }

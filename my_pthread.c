@@ -8,6 +8,7 @@
 
 #include "my_pthread_t.h"
 #define MEM 16384 //Amount of memory used for a new context stack
+#define NUM_PRIORITY_LEVELS 5 //number of priority levels
 
 /* Additional ucontext funtion info to help out */
 //getcontext(context) - initializes a blank context or explicitly gets the context specified

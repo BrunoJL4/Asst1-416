@@ -534,13 +534,22 @@ int runQueueHelper() {
 		// change status of current thread to running
 		currTcb->status = THREAD_RUNNING;
 		// setitimer for 25ms * the number of time slices allotted
-		// to this thread
+		// to this thread. set timer type to VIRTUAL_TIMER.
 
-		// swap contexts with this child thread. this will result
-		// either in the thread running to completion before
-		// the timer expires, or the thread being interrupted and
-		// our signal handler for SIGVTALRM handling the situation
-		// where the thread didn't finish running.
+		// swap contexts with this child thread.
+
+		// if this context resumed and status is still THREAD_RUNNING,
+		// then thread ran to completion before being interrupted.
+		// just setitimer(0) for the itimer in order to shut it off for
+		// this thread.
+
+		// if this context  resumed and status is THREAD_INTERRUPTED,
+		// then the signal handler interrupted the child thread, which
+		// didn't get to run to completion.
+
+		// TODO @all: implement a signal handler that captures a
+		// SIGVTALRM signal, and checks 
+
 
 		
 

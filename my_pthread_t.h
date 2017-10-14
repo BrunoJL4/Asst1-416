@@ -147,19 +147,37 @@ int my_pthread_mutex_unlock(my_pthread_mutex_t *mutex);
 int my_pthread_mutex_destroy(my_pthread_mutex_t *mutex);
 
 
-/* WE THOUGHT THESE WERE NECESSARY, JUST SEPERATING THEM FROM WHAT WAS GIVEN */
+/* Our own functions below */
 
-/* intializes manager thread to oversee progress of other threads
-   return: 0 - not init, return 1 - init */
+/* Initializes the manager thread, with the user's calling function
+being saved as a child thread which is itself managed by the 
+manager thread.*/
 int init_master_thread();
 
+/* Carries out the manager thread responsibilities.
+Makes use of runQueueHelper() and maintenanceHelper() in order
+to make debugging more modular. */
 int my_pthread_manager();
+
+/* This function is the helper function which performs most of
+the work for the manager thread's run queue. */
+void runQueueHelper();
+
+/* Helper function which performs most of the work for
+the manager thread's maintenance cycle. */
+void maintancehelper();
 
 /* Creates a new tcb instance. */
 tcb *createTcb(threadStatus status, my_pthread_t id, stack_t stack, 
 	ucontext_t context, unsigned int timeSlices);
 
-void runQueueHelper();
+/* Returns a pointer to a new pnode instance. */
+pnode *createPnode(my_pthread_t tid);
+
+/* Inserts a given pnode into a given level of the MLPQ, such
+that it is the last node in that level's list (or first, if no others12
+are present). */
+int insertPnode(pnode *input, unsigned int level);
 
 //TODO @all: add macro for run queue alarm signal handler.
 

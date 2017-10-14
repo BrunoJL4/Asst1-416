@@ -159,19 +159,20 @@ int my_pthread_create(my_pthread_t * thread, pthread_attr_t * attr, void *(*func
 		tcb *newTcb = createTcb(status, tid, stack, context, timeSlices);
 		//change the tcb instance in tcbList[id] to this tcb
 		tcbList[tid] = newTcb;
+		// insert a pnode containing the ID at Level 0 of MLPQ
+		pnode *node = createPnode(tid);
+		insertPnode(node, 0);
 		return tid;
 	}
 	// if still using new ID's, just use threadsSoFar as the index and increment it
 	tcb *newTcb = createTcb(status, tid, stack, context, timeSlices);
-	//add the new tcb to the tcbList at the cell corresponding to its ID
+	// add the new tcb to the tcbList at the cell corresponding to its ID
 	tcbList[threadsSoFar] = newTcb;
-	//we've added another thread, so increase this
+	// insert a pnode containing the ID at Level 0 of MLPQ
+	pnode *node = createPnode(tid);
+	insertPnode(node, 0);
+	// we've added another thread, so increase this
 	threadsSoFar ++;
-	//TODO @bruno: insert pnode with tid into Level 0 of MLPQ, at the very end...
-	//you should create a function called insertNewPnode() that does this, or something. 
-	//set CurrentContext to the context that called my_pthread_create()...this could be
-	//Main, or it could also be a child thread that's calling my_pthread_create().
-	//also swap to Manager, 
 	//TODO @bruno: Figure out how this shit works	
 	swapcontext(&CurrentContext, &Manager);
 	
@@ -276,29 +277,38 @@ int my_pthread_mutex_destroy(my_pthread_mutex_t *mutex) {
 
 /* Essential support functions go here (e.g: manager thread) */
 
-/* this function carries out the manager thread responsibilities */
-//TODO @all: Implement and document this
-int my_pthread_manager() {
-	//Check MLPQ
-	//Check Run Queue & pick new context
-	//Switch context to Main
-	return 0;
-}
-
-/* this function is the helper function which performs most of
-the work for the manager thread's run queue. */
-//TODO @all: implement and document this.
-//TODO @all: decide what the parameters are, if any.
-void runQueueHelper() {
-	return 0;
-}
-
-//TODO @all: implement signal handler for SIGALRM/SIGVTALRM
+//TODO @bruno: implement signal handler for SIGALRM/SIGVTALRM
 //that comes up when the manager thread calls setitimer()
 //and the running thread runs out of time slices.
 //Do as described in the documentation.
 
-/* TODO @joe, alex: Implement and document this. */
+/* this function carries out the manager thread responsibilities */
+//TODO @bruno: Implement and document this
+int my_pthread_manager() {
+	//Check MLPQ
+	//Check Run Queue & pick new context
+	//Switch context to Main
+	return 1;
+}
+
+
+/* this function is the helper function which performs most of
+the work for the manager thread's run queue. */
+//TODO @bruno: implement and document this.
+//TODO @bruno: decide what the parameters are, if any.
+void runQueueHelper() {
+
+	return 1;
+}
+
+
+/* Helper function which performs most of the work for
+the manager thread's maintenance cycle. */
+void maintancehelper(){
+
+}
+
+
 int init_manager_thread() {
 	//Get the current context (this is the main context)
 	getcontext(&Main);
@@ -329,8 +339,9 @@ int init_manager_thread() {
 	Manager.uc_stack = malloc(MEM); //new stack using specified stack size
 	makecontext(&Manager, (void*)&my_pthread_manager, 0);
 	
-	return 0;
+	return 1;
 }
+
 
 /* Returns a pointer to a new tcb instance. */
 tcb *createTcb(threadStatus status, my_pthread_t tid, stack_t stack, 
@@ -348,7 +359,7 @@ tcb *createTcb(threadStatus status, my_pthread_t tid, stack_t stack,
 	return ret;
 }
 
-/* Returns a pointer to a new pnode instance. */
+
 pnode *createPnode(my_pthread_t tid) {
 	pnode *ret = (pnode*) malloc(sizeof(pnode));
 	ret->tid = tid;
@@ -356,5 +367,31 @@ pnode *createPnode(my_pthread_t tid) {
 	return ret;
 }
 
-/* Auxiliary support functions go here. */
 
+int insertPnode(pnode *input, unsigned int level) {
+	if(MLPQ == NULL) {
+		return -1;
+	}
+	if(input == NULL) {
+		return -2;
+	}
+	if(level < 0 || level > NUM_PRIORITY_LEVELS) {
+		return -3;
+	}
+	// error-checking done, begin insertion.
+	// first scenario: MLPQ[level] is NULL.
+	if(MLPQ[level] == NULL) {
+		// insert input as head
+		MLPQ[level] = input;
+		return 1;
+	}
+	// second scenario: MLPQ[level] has one or more nodes.
+	// go until we find the last node (temp->next == NULL)
+	pnode *temp = MLPQ[level];
+	while(temp->next != NULL) {
+		temp = temp->next;
+	}
+	// set temp->next to input
+	temp->next = input;
+	return 1;
+}

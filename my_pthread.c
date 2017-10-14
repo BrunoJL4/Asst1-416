@@ -314,7 +314,8 @@ int my_pthread_manager() {
 the manager thread's maintenance cycle. Returns 0 on failure,
 1 on success.*/
 int maintenanceHelper(){
-	// for each thread in the run queue:
+	// first part: clearing the run queue, and performing
+	// housekeeping depending on the thread's status
 	pnode *currPnode = runQueue;
 	while(currPnode != NULL) {
 		my_pthread_t currId = currPnode->currId;
@@ -365,6 +366,7 @@ int maintenanceHelper(){
 		}
 	}
 
+	// second part: populating the run queue and allocating time slices.
 	// go through MLPQ, starting at highest priority level and going
 	// down until we've given out time slices, putting valid threads
 	// into the run queue and setting their time slices accordingly.
@@ -372,7 +374,7 @@ int maintenanceHelper(){
 	// is invalid and not ready to go in the run queue.
 	int timeSlicesLeft = 20;
 	int i;
-	for(i = 0; i < NUM_PRIORITY_LEVELS; i++) {
+	for(i = 0; i < MLPQ.length; i++) {
 		// formula for priority levels v. time slices: 2^(level)
 		int numSlices = round(pow(2, i)); // round() used to turn pow() to int val
 		// if we don't have enough timeSlices left to distribute to any node in
@@ -426,7 +428,27 @@ int maintenanceHelper(){
 		}
 	}
 
-	// when runQueue has been populated with valid, ready threads,
+	// final part: check if runQueue and MLPQ are both empty. if they
+	// are, set manager_active to 0.
+	if(runQueue == NULL) {
+		int mlpq_empty = 1;
+		int i;
+		// check and see if all queues in MLPQ are empty.
+		for(i = 0; i < MLPQ.length; i++) {
+			if(MLPQ[i] != NULL) {
+				break;
+			}
+			if(i == (MLPQ.length - 1)) {
+				mlpq_empty = 0;
+			}
+		}
+		if(mlpq_empty == 1) {
+			manager_active = 0;
+		}
+	}
+
+	// when runQueue has either been populated with valid, ready threads,
+	// or we've indicated that the manager thread's job has finished,
 	// return 1 to indicate success.
 	return 1;
 
@@ -438,6 +460,18 @@ the work for the manager thread's run queue. Returns 0 on failure,
 1 on success. */
 //TODO @bruno: implement and document this.
 int runQueueHelper() {
+	// first, check and see if the manager thread is still active after
+	// the last round of maintenance
+	if(manager_active == 0) {
+		return 1;
+	}
+
+	// it begins with a populated runQueue. it needs to iterate through
+	// each thread and perform the necessary functions depending on
+	// the thread's status. the only valid status for a thread it
+	// encounters is THREAD_READY. it will, however, change thread
+	// statuses to THREAD_DONE, THREAD_INTERRUPTED, or THREAD_WAITING
+	// at some point. 
 
 	return 1;
 }

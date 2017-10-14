@@ -512,6 +512,12 @@ int runQueueHelper() {
 	if(manager_active == 0) {
 		return 1;
 	}
+	if(runQueue == NULL) {
+		printf("Error! Went into runQueueHelper() without a 
+			populated runQueue. There must be an issue in the MLPQ 
+			not resolved in maintenanceHelper().\n");
+		return 0;
+	}
 
 	// it begins with a populated runQueue. it needs to iterate through
 	// each thread and perform the necessary functions depending on
@@ -519,6 +525,27 @@ int runQueueHelper() {
 	// encounters is THREAD_READY. it will, however, change thread
 	// statuses to THREAD_DONE, THREAD_INTERRUPTED, or THREAD_WAITING
 	// at some point.
+	pnode *currPnode = runQueue;
+	pnode *prev = currPnode;
+	while(currPnode != NULL) {
+		currId = currPnode->tid;
+		currTcb = tcbList[currId];
+		// grab number of time slices allowed for the thread
+		int slicesLeft = currTcb->timeSlices;
+		// change status of current thread to running
+		currTcb->status = THREAD_RUNNING;
+		// setitimer for 25ms * the number of time slices allotted
+		// to this thread
+
+		// swap contexts with this child thread. this will result
+		// either in the thread running to completion before
+		// the timer expires, or the thread being interrupted and
+		// our signal handler for SIGVTALRM handling the situation
+		// where the thread didn't finish running.
+
+		
+
+	}
 
 	return 1;
 }

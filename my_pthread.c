@@ -382,28 +382,42 @@ int maintenancehelper(){
 		}
 		// go through this level's queue, if at all applicable.
 		pnode *currPnode = MLPQ[i];
+		pnode *prev = currPnode;
 		while(currPnode != NULL) {
 			// don't search the current level further if not enough
 			// time slices are left.
 			if(numSlices > timeSlicesLeft) {
 				break;
 			}
-			if(numSlices)
 			my_pthread_t currId = currPnode->tid;
-			pnode *temp = currPnode;
-			tcb *currTcb = tcbList[currPnode->tid];
+			tcb *currTcb = tcbList[currId];
 			// if the current pnode's thread is ready to run:
 			if(currTcb->status == THREAD_READY) {
 				// make a temp ptr to the current pnode.
-				// delink the current pnode from the current level's queue,
-				// linking the previous and next instances (if any, if any)
-				// add the temp ptr to the end of the runQueue.
-				// point its next member to NULL./
+				pnode *tempCurr = currPnode;
+				// first case: pnode is first node in queue
+				if(currPnode == MLPQ[i]) {
+					// set MLPQ[i]'s pointer to the next node
+					MLPQ[i] = MLPQ[i]->next;
+				}
+				// second case: pnode isn't first node (e.g. is
+				// in the middle or is the last node)
+				else{
+					prev->next = curr->next;
+				}
+				// add the tempCurr ptr to the end of the runQueue.
+				pnode *temp = runQueue;
+				while(temp->next != NULL) {
+					temp = temp->next;
+				}
+				temp->next = tempCurr;
+				// point its next member to NULL.
+				tempCurr->next = NULL;
 				// change its corresponding thread's status to THREAD_RUNNING.
+				currTcb->status = THREAD_RUNNING;
 			}
-			// otherwise, just keep going
-			else{
-				currPnode = currPnode->next;
+			prev = currPnode;
+			currPnode = currPnode->next;
 			}
 		}
 	}

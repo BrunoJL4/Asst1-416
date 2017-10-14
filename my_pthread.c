@@ -323,13 +323,26 @@ void maintenancehelper(){
 		// if a runQueue thread's status is THREAD_INTERRUPTED:
 			// we insert the thread back into the MLPQ but at one lower
 			// priority level, also changing its priority member.
+			// then change its status to READY.
 
-		// if a runQueue thread's status isn't any of the two above:
+		// if a runQueue thread's status is THREAD_WAITING:
+			// put the thread into the MLPQ at the same priority level,
+			// so that it can resume in subsequent runs when it's
+			// set to READY as the thread it's waiting on finishes
+			// execution.
+
+		// if a runQueue thread's status isn't any of the three above:
 			// print an error message and return, because there shouldn't
-			// be any other status thread left after the runQueue has
-			// been finished.
+			// be any threads with other statuses than those two
+			// when the MLPQ is finished.
 
-	// run queue 
+	// run queue should be set to NULL at this point.
+
+	// go through MLPQ, starting at highest priority level and going
+	// down until we've given out time slices, putting valid threads
+	// into the run queue and setting their time slices accordingly.
+	// a "valid" thread is one that is READY; any other thread status
+	// is invalid and not ready to go in the run queue.
 
 }
 
@@ -397,6 +410,10 @@ tcb *createTcb(threadStatus status, my_pthread_t tid, stack_t stack,
 	ret->context = context;
 	// set priority to 0 by default
 	ret->priority = 0;
+	// waitingThread is -1 by default
+	ret->waitingThread = -1;
+	// valuePtr is NULL by default
+	
 	// return a pointer to the instance
 	return ret;
 }

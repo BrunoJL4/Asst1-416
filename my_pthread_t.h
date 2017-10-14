@@ -74,6 +74,17 @@ typedef struct threadControlBlock {
 	and so on) as the thread is interrupted/preempted more often*/
 	unsigned int priority;
 
+	/* The ID of the thread waiting on this thread, if any. -1 by
+	default, or if no threads are waiting on this thread. */
+	my_pthread_t waitingThread;
+
+	/* The value pointer of this thread, which would have some value
+	saved if this thread were to join() another thread. The joined 
+	child thread would reference its waitingThread member, find this
+	thread's ID, and change valuePtr accordingly. NULL by default, or
+	if no valuePtr is currently being stored. */
+	void *valuePtr;
+
 } tcb; 
 
 

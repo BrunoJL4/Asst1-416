@@ -235,45 +235,93 @@ int my_pthread_join(my_pthread_t thread, void **value_ptr) {
 /* initial the mutex lock */
 int my_pthread_mutex_init(my_pthread_mutex_t *mutex, const pthread_mutexattr_t *attr) {
 	//Check if mutex is initialized
-		//return 0
-	//Else
-		//initialize mutex as free & assign mutex attribute
-		//return 1
-	return 0;
+	//if so, return
+	if (&mutex != NULL) {
+		return 0;
+	}
+	//otherwise, initialize mutex
+	mutex = malloc(sizeof(my_pthread_mutex_t));
+	mutex->status = UNLOCKED
+	mutex->waitQueue = NULL;
+	mutex->ownerID = -1;
+	mutex->attr = attr;
+	
+	return 1;
 }
 
 /* aquire the mutex lock */
 int my_pthread_mutex_lock(my_pthread_mutex_t *mutex) {
 	//Call my_pthread_mutex_init
-	//If mutex is locked
-		//Enter queue for lock
-		//Yield
+	//calling with NULL attr argument sets the property to default
+	my_pthread_mutex_init(mutex, NULL);
+	//If mutex is locked, enter waitQueue and yield
+	//NOTE: yield should set this thread status to BLOCKED
+	if (mutex->status == LOCKED) {
+		//Create pnode of current thread
+		pnode *new = malloc(sizeof(pnode));
+		new->tid = current_thread;
+		new->next = NULL;
+		//start a waitQueue if it is empty
+		if (mutex->waitQueue == NULL) {
+			mutex->waitQueue = new;
+		//add to the end of the waitQueue
+		} else {
+			pnode *ptr = mutex->waitQueue;
+			while (ptr->next != NULL) {
+				ptr = ptr->next;
+			}
+			ptr->next = new;
+		}
+		//yield
+		yield();
+	} 
+	//continue running after the end of yielding OR did not have to yield
 	//Set mutex value to locked
+	mutex->status = LOCKED;
 	//Set mutex owner to current thread
+	mutex->ownerID = current_thread;
+	
 	return 0;
 }
 
 /* release the mutex lock */
 int my_pthread_mutex_unlock(my_pthread_mutex_t *mutex) {
 	//If mutex is NOT initialized
-		//We can't unlock an unanitialized thread ERROR
+	//user did something bad
+	if (&mutex == NULL) {
+		return -1;
 	//Elif mutex does not belong to us
-		//Can't unlock a thread we didn't lock ERROR
-	//Else
-		//Unlock mutex
-		//Check waiting queue
-			//alert the next available thread & remove it from queue/add back to run queue
+	//we can't unlock it
+	} else if (mutex->ownerID != current_thread) {
+		return -1;
+	}
+	//otherwise unlock mutex
+	mutex->status = UNLOCKED;
+	//Check waiting queue, destroy mutex if there is no more use
+	if (mutex->waitQueue == NULL) {
+		my_pthread_mutex_destroy(mutex);
+		return 0;
+	}
+	//alert the next available thread & remove it from queue/add back to run queue
+	pnode *ptr = mutex->waitQueue;
+	mutex->waitQueue = mutex->waitQueue->next;
+	//make this thread ready so it can now acquire this lock
+	tcbList[ptr->tid]->status = THREAD_READY;
+	
 	return 0;
 }
 
 /* destroy the mutex */
 int my_pthread_mutex_destroy(my_pthread_mutex_t *mutex) {
 	//If mutex is NOT initialized
-		//Can't destroy an uninitialized mutex
+	if (&mutex == NULL) {
+		return -1;
 	//Elif mutex is locked
-		//Can't destroy a mutex being used
-	//Else
-		//Set mutex back to null
+	} else if (mutex->status == LOCKED) {
+		return -1;
+	}	
+	//otherwise, free the memory used
+	free(mutex);
 		
 	return 0;
 }

@@ -8,7 +8,6 @@
 
 #include "my_pthread_t.h"
 #define MEM 16384 //Amount of memory used for a new context stack
-#define NUM_PRIORITY_LEVELS 5 //number of priority levels
 
 /* Additional ucontext funtion info to help out */
 //getcontext(context) - initializes a blank context or explicitly gets the context specified
@@ -33,6 +32,7 @@ the MLPQ to an array of an allocated length equal to the number
 of priority levels. 5 levels = 5 cells in the array.
 */
 pnode **MLPQ;
+
 
 
 /* The array that stores pointers to all Thread Control Blocks.
@@ -76,18 +76,9 @@ threads has been exceeded.
 */
 pnode *recyclableQueue;
 
-
-/* Quanta length; by default should be 25ms.*/
-unsigned int quantaLength;
-
 /* Number of threads created so far.
 This will be initialized to 0 when the manager thread is initialized. */
 unsigned int threadsSoFar;
-
-/* Maximum number of threads; used to determine the space in
-tcbList, and is compared by the manager thread to threadsSoFar
-to see if it needs to start using recyclableQueue. */
-unsigned int maxNumThreads;
 
 /* contexts */
 ucontext_t Manager, Main;
@@ -117,7 +108,6 @@ int my_pthread_create(my_pthread_t * thread, pthread_attr_t * attr, void *(*func
 	//check that manager thread exists	
 	//init if it does not
 	if (manager_active != 1) {
-		current_thread = -1;
 		init_manager_thread();
 	}
 	//get the manager thread
@@ -287,16 +277,19 @@ void runQueueHelper() {
 
 /* TODO @joe, alex: Implement and document this. */
 int init_manager_thread() {
+	//Get the current context (this is the main context)
+	getcontext(&Main);
+	//initialize tcb for main
+	tcb *newTcb = createTcb(THREAD_READY, 0, Main.stack, Main);
+	
+	tcbList[0] = newTcb;
+	threadsSoFar = 1;
 	//initialize global variables
 	//first, initialize array for MLPQ
 	pnode *temp[NUM_PRIORITY_LEVELS];
 	MLPQ = temp;
 	//next initialize quantaLength to 25 (as in 25ms) for setitimer
-	//call in runQueueHelper()
 	quantaLength = 25;
-	//then initialize tcbList, thread counter, and runQueue
-	tcbList = NULL;
-	threadsSoFar = 0; // note: already initialized to 0, but just being sanitary
 	runQueue = NULL;
 	//set manager_active to 1
 	manager_active = 1;
@@ -312,7 +305,7 @@ int init_manager_thread() {
 
 /* Returns a pointer to a new tcb instance. */
 tcb *createTcb(threadStatus status, my_pthread_t tid, stack_t stack, 
-	ucontext_t context, unsigned int timeSlices) {
+	ucontext_t context)
 	// allocate memory for tcb instance
 	tcb *ret = (tcb*) malloc(sizeof(tcb));
 	// set members to inputs
@@ -320,7 +313,6 @@ tcb *createTcb(threadStatus status, my_pthread_t tid, stack_t stack,
 	ret->tid = tid;
 	ret->stack = stack;
 	ret->context = context;
-	ret->timeSlices = timeSlices;
 	// set priority to 0 by default
 	ret->priority = 0;
 	// return a pointer to the instance

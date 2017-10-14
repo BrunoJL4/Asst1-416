@@ -205,7 +205,7 @@ void my_pthread_exit(void *value_ptr) {
         //implicit behaviour
         /* Performing  a  return  from the start function of any thread other than
         the main thread results in an implicit call  to  pthread_exit(),  using
-        the function's return value as the thread's exit status. /*
+        the function's return value as the thread's exit status. */
     
     //if yes,
         //set thread status to THREAD_FINISHED
@@ -313,7 +313,7 @@ int my_pthread_manager() {
 /* Helper function which performs most of the work for
 the manager thread's maintenance cycle. Returns 0 on failure,
 1 on success.*/
-int maintenanceHelper(){
+int maintenanceHelper() {
 	// first part: clearing the run queue, and performing
 	// housekeeping depending on the thread's status
 	pnode *currPnode = runQueue;
@@ -424,7 +424,6 @@ int maintenanceHelper(){
 			}
 			prev = currPnode;
 			currPnode = currPnode->next;
-			}
 		}
 	}
 
@@ -451,8 +450,8 @@ int maintenanceHelper(){
 	// or we've indicated that the manager thread's job has finished,
 	// return 1 to indicate success.
 	return 1;
-
 }
+
 
 
 /* this function is the helper function which performs most of
@@ -471,7 +470,7 @@ int runQueueHelper() {
 	// the thread's status. the only valid status for a thread it
 	// encounters is THREAD_READY. it will, however, change thread
 	// statuses to THREAD_DONE, THREAD_INTERRUPTED, or THREAD_WAITING
-	// at some point. 
+	// at some point.
 
 	return 1;
 }
@@ -519,7 +518,7 @@ int init_manager_thread() {
 
 
 tcb *createTcb(threadStatus status, my_pthread_t tid, stack_t stack, 
-	ucontext_t context)
+	ucontext_t context) {
 	// allocate memory for tcb instance
 	tcb *ret = (tcb*) malloc(sizeof(tcb));
 	// set members to inputs

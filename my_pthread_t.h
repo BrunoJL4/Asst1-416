@@ -174,15 +174,15 @@ to make debugging more modular. Returns 0 on failure, 1
 on success. */
 int my_pthread_manager();
 
-/* This function is the helper function which performs most of
-the work for the manager thread's run queue. Returns 0 on failure,
-1 on success.*/
-int runQueueHelper();
-
 /* Helper function which performs most of the work for
 the manager thread's maintenance cycle. Returns 0 on failure,
 1 on success.*/
-int maintanceHelper();
+int maintenanceHelper();
+
+/* This function is the helper function which performs most of
+the work for the manager thread's run queue. Returns 0 on failure,
+1 on success. */
+int runQueueHelper();
 
 /* Returns a pointer to a new tcb instance. */
 tcb *createTcb(threadStatus status, my_pthread_t id, stack_t stack, 

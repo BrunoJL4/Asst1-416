@@ -186,11 +186,11 @@ int my_pthread_create(my_pthread_t * thread, pthread_attr_t * attr, void *(*func
 
 /* give CPU pocession to other user level threads voluntarily */
 int my_pthread_yield() {
-	
-    pidList[currentThread].status = THREAD_YIELDED;
+
+    pidList[currentThread]->status = THREAD_YIELDED;
     swapcontext(&CurrentContext, &Manager);
-    
-    return 0;
+    return 1;
+
 }
 
 /* terminate a thread */
@@ -353,6 +353,9 @@ int my_pthread_manager() {
 	// TODO @bruno: when manager thread no longer
 	// active, deallocate its resources... maybe
 	// make helper function?
+	if(manager_active == 0) {
+		// TODO @all: implement this
+	}
 	return 1;
 }
 
@@ -361,6 +364,7 @@ int my_pthread_manager() {
 the manager thread's maintenance cycle. Returns 0 on failure,
 1 on success.*/
 int maintenanceHelper() {
+
 	// first part: clearing the run queue, and performing
 	// housekeeping depending on the thread's status
 	pnode *currPnode = runQueue;
@@ -368,6 +372,10 @@ int maintenanceHelper() {
 		my_pthread_t currId = currPnode->currId;
 		tcb *currTcb = tcbList[currId];
 		// if a runQueue thread's status is THREAD_DONE:
+		
+		// TODO @all: make sure that pnodes are pointing where
+		// they should, and that we understand the shape of
+		// the runQueue at different points of this loop.
 		if(currTcb->status == THREAD_DONE) {
 			// check for any threads that share the thread's
 			// stack, deallocate the stack if none share it.
@@ -385,7 +393,7 @@ int maintenanceHelper() {
 			free(temp);
 		}
 		// if a runQueue thread's status is THREAD_INTERRUPTED:
-		else if(currPnode->status == THREAD_INTERRUPTED){
+		else if(currPnode->status == THREAD_INTERRUPTED) {
 			// we insert the thread back into the MLPQ but at one lower
 			// priority level, also changing its priority member.
 			// then change its status to READY.
@@ -395,8 +403,8 @@ int maintenanceHelper() {
 			insertPnodeMLPQ(temp, currTcb->priority);
 			currTcb->status = THREAD_READY;
 		}
-		// if a runQueue thread's status is THREAD_WAITING:
-		else if(currPnode->status == THREAD_WAITING) {
+		// if a runQueue thread is waiting or yielding
+		else if(currPnode->status == THREAD_WAITING || THREAD_YIELDED) {
 			// put the thread into the MLPQ at the same priority level,
 			// so that it can resume in subsequent runs when it's
 			// set to READY as the thread it's waiting on finishes
@@ -405,7 +413,7 @@ int maintenanceHelper() {
 			currPnode = currPnode->next;
 			insertPnodeMLPQ(temp, currTcb->priority);
 		}
-		// if a runQueue thread's status isn't any of the three above:
+		// if a runQueue thread's status isn't any of the four above:
 		else{
 			printf("Error! Thread in runQueue found to have invalid status
 				during maintenance cycle.\n");
@@ -414,6 +422,7 @@ int maintenanceHelper() {
 	}
 
 	// second part: populating the run queue and allocating time slices.
+
 	// go through MLPQ, starting at highest priority level and going
 	// down until we've given out time slices, putting valid threads
 	// into the run queue and setting their time slices accordingly.
@@ -466,8 +475,8 @@ int maintenanceHelper() {
 				currTcb->timeSlices = numSlices;
 				// subtract numSlices from timeSlicesLeft
 				timeSlicesLeft = timeSlicesLeft - numSlices;
-				// change its corresponding thread's status to THREAD_RUNNING.
-				currTcb->status = THREAD_RUNNING;
+				// change its corresponding thread's status to THREAD_READY.
+				currTcb->status = THREAD_READY;
 			}
 			prev = currPnode;
 			currPnode = currPnode->next;
@@ -492,7 +501,6 @@ int maintenanceHelper() {
 			manager_active = 0;
 		}
 	}
-
 	// when runQueue has either been populated with valid, ready threads,
 	// or we've indicated that the manager thread's job has finished,
 	// return 1 to indicate success.
@@ -687,6 +695,10 @@ int checkAndDeallocateStack(my_pthread_t tid) {
 			}
 		}
 	}
+	// TODO @all: also implement a while loop that just runs through the
+	// runQueue and sees if any thread NOT sharing the input tid 
+	// shares the same stack.
+
 	// if after running this loop, we haven't found a thread that shares
 	// the stack, we deallocate the stack and return successfully.
 	if(stackShared == 0) {

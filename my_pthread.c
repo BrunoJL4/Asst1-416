@@ -271,8 +271,10 @@ int my_pthread_mutex_lock(my_pthread_mutex_t *mutex) {
 			}
 			ptr->next = new;
 		}
-		//yield
-		yield();
+		//set thread status to BLOCKED and change context
+		tcbList[current_thread]->status = THREAD_BLOCKED;
+		//let the manager continue in the run queue
+		setcontext(&Manager);
 	} 
 	//continue running after the end of yielding OR did not have to yield
 	//Set mutex value to locked
@@ -306,6 +308,7 @@ int my_pthread_mutex_unlock(my_pthread_mutex_t *mutex) {
 	mutex->waitQueue = mutex->waitQueue->next;
 	//make this thread ready so it can now acquire this lock
 	tcbList[ptr->tid]->status = THREAD_READY;
+	free(ptr);
 	
 	return 0;
 }

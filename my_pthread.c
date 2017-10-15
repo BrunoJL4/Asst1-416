@@ -20,10 +20,6 @@
 
 /* Define global variables here. */
 
-/* TODO @all: Decide whether or not these variables should just be 
-located within the manager thread's function, or if they should
-stay global. */
-
 /* The Multi-Level Priority Queue (MLPQ).
 
 The MLPQ is an array of pnodes. Since each "pnode" will
@@ -96,7 +92,7 @@ unsigned int current_exited;
 
 /*ID of the currently-running thread. MAX_NUM_THREADS+1 if manager,
 otherwise then some child thread. */
-unsigned int current_thread;
+my_pthread_t current_thread;
 
 /* The status of the currently-running thread (under the manager).
 Will either be THREAD_RUNNING or THREAD_INTERRUPTED. */
@@ -175,7 +171,7 @@ int my_pthread_create(my_pthread_t * thread, pthread_attr_t * attr, void *(*func
 		//make a new TCB from the gathered information
 		tcb *newTcb = createTcb(status, tid, stack, context, timeSlices);
 		//change the tcb instance in tcbList[id] to this tcb
-		tcbList[tid] = newTcb;
+		tcbList[(unsigned int) tid] = newTcb;
 		// insert a pnode containing the ID at Level 0 of MLPQ
 		pnode *node = createPnode(tid);
 		insertPnodeMLPQ(node, 0);
@@ -190,7 +186,8 @@ int my_pthread_create(my_pthread_t * thread, pthread_attr_t * attr, void *(*func
 	insertPnodeMLPQ(node, 0);
 	// we've added another thread, so increase this
 	threadsSoFar ++;
-	//TODO @bruno: Figure out how this shit works	
+	// swap to the manager
+	current_thread = MAX_NUM_THREADS + 1;	
 	swapcontext(&CurrentContext, &Manager);
 	
 	//returns the new thread id on success
@@ -202,7 +199,7 @@ int my_pthread_yield() {
 
     //set thread to yield, set current_thread to manager, swap contexts.
     //manager will yield job in stage 1 of maintence
-    tcpList[currentThread]->status = THREAD_YIELDED;
+    tcbList[(unsigned int) current_thread]->status = THREAD_YIELDED;
     current_thread = MAX_NUM_THREADS + 1;
     swapcontext(&CurrentContext, &Manager);
     return 1;
@@ -211,53 +208,60 @@ int my_pthread_yield() {
 
 /* terminate a thread */
 void my_pthread_exit(void *value_ptr) {
-    
-    //thread that the calling thread is joined to
-    my_pthread_t joinedThread = tcpList[currentThread]->waitingThread;
+
+	// create unsigned int version of current thread to reduce casts
+    unsigned int current_thread_int = (unsigned int) current_thread;
+
+    // thread that the calling thread is joined to
+    my_pthread_t joinedThread = tcbList[current_thread_int]->waitingThread;
     
     //set current thread status to THREAD_FINISHED
-    tcpList[current_thread]->status == THREAD_FINISHED;
+    tcbList[current_thread_int]->status == THREAD_FINISHED;
     //set ret value
-    tcpList[(int)current_thread]->valuePtr = value_ptr];
+    tcbList[current_thread_int]->valuePtr = value_ptr];
 
     //if thread was not joined, context goes back to manager thread
-    if(tcpList[current_thread]->waitingThrad == -1)
+    if(tcbList[current_thread_int]->waitingThread == -1)
         current_thread = MAX_NUM_THREADS + 1;
+    	current_exited = 1;
         swapcontext(&CurrentContext, &Manager);
     //if thread was joined, context goes back to joined thread
     else{
-        current_thread = (int)joinedThread;
-        swapcontext(&CurrentContext, &tcpList[(int)joinedThread]->context);
+        current_thread = joinedThread;
+        current_exited = 1;
+        swapcontext(&CurrentContext, &tcbList[(unsigned int)joinedThread]->context);
     }
     
-    //@Bruno: current_exited var?
     
 }
 
 
 /* wait for thread termination */
 int my_pthread_join(my_pthread_t thread, void **value_ptr) {
-            
+
+     // create unsigned int version of current thread to reduce casts
+    unsigned int thread_int = (unsigned int) thread;
+
     //what if thread doesn't exist?
-    if((tcpList[(int)thread]) != NULL){
-        printf(stderr, "pthread_join(): Target thread does not exist");
-        return -1; //error
+    if((tcbList[thread_int]) == NULL){
+        printf(stderr, "pthread_join(): Target thread %d does
+        	not exist!\n", thread_int);
+        return 0; //error
     }
   
     //join calling thread to the target thread
-    tcpList[(int)thread]->waitingThread = (my_pthread_t)currentThread;
+    tcbList[thread_int]->waitingThread = current_thread;
     //switch current thread to target thread
-    current_thread = (int)thread;
-    //switch over to context of target thread
-    swapcontext(&ManagerThread, &tcpList[(int)thread]->context);
+    current_thread = thread;
+    swapcontext(&Manager, &tcbList[thread_int]->context);
     
     //implemented in manpages - if(target thread was cancelled){
     
     //when context is switched back...
     //collect target thread's value once thread is finished running
-    *value_ptr = tcpList[(int)thread]->valuePtr;
+    *value_ptr = tcbList[thread_int]->valuePtr;
         
-    return 0; //success
+    return 1; //success
 }
 
 /* initial the mutex lock */
@@ -303,6 +307,7 @@ int my_pthread_mutex_lock(my_pthread_mutex_t *mutex) {
 		//set thread status to BLOCKED and change context
 		tcbList[current_thread]->status = THREAD_BLOCKED;
 		//let the manager continue in the run queue
+		current_thread = MAX_NUM_THREADS + 1;
 		setcontext(&Manager);
 	} 
 	//continue running after the end of yielding OR did not have to yield
@@ -360,14 +365,8 @@ int my_pthread_mutex_destroy(my_pthread_mutex_t *mutex) {
 
 /* Essential support functions go here (e.g: manager thread) */
 
-//TODO @bruno: implement signal handler for SIGALRM/SIGVTALRM
-//that comes up when the manager thread calls setitimer()
-//and the running thread runs out of time slices.
-//Do as described in the documentation.
-
 /* Carries out the manager thread responsibilities.
 Returns 0 on failure, 1 on success. */
-//TODO @bruno: Implement and document this
 int my_pthread_manager() {
 	// check if manager is still considered "active"
 	while(manager_active == 1) {
@@ -382,11 +381,13 @@ int my_pthread_manager() {
 			return 0;
 		}
 	}
-	// TODO @bruno: when manager thread no longer
-	// active, deallocate its resources... maybe
-	// make helper function?
+	// We only reach this point when maintenanceHelper()
+	// has set manager_active to 0
 	if(manager_active == 0) {
-		// TODO @all: implement this
+		// free the manager context... don't free the
+		// stack, though, because we still need to run
+		// on that to return
+		free(&Manager);
 	}
 	return 1;
 }
@@ -402,12 +403,9 @@ int maintenanceHelper() {
 	pnode *currPnode = runQueue;
 	while(currPnode != NULL) {
 		my_pthread_t currId = currPnode->tid;
-		tcb *currTcb = tcbList[(int)currId];
+		tcb *currTcb = tcbList[(unsigned int)currId];
 		// if a runQueue thread's status is THREAD_DONE:
 		
-		// TODO @all: make sure that pnodes are pointing where
-		// they should, and that we understand the shape of
-		// the runQueue at different points of this loop.
         // Took a look at this, made minor syntax changes, long as checkAndDeallocateStack
         // and InsertPnodeMLPQ work as intended, stage 1 looks good. - Joe Gormley
 		if(currTcb->status == THREAD_DONE) {
@@ -419,7 +417,7 @@ int maintenanceHelper() {
 			// then deallocate its tcb through tcbList
 			free(currTcb);
 			// set tcbList[tid] to NULL
-			tcbList[(int)currId] = NULL;
+			tcbList[(unsigned int)currId] = NULL;
 			// then deallocate its pnode in the run queue while
 			// moving currPnode to the next node.
 			pnode *temp = currPnode;
@@ -482,7 +480,7 @@ int maintenanceHelper() {
 				break;
 			}
 			my_pthread_t currId = currPnode->tid;
-			tcb *currTcb = tcbList[currId];
+			tcb *currTcb = tcbList[(unsigned int) currId];
 			// if the current pnode's thread is ready to run:
 			if(currTcb->status == THREAD_READY) {
 				// make a temp ptr to the current pnode.
@@ -546,7 +544,6 @@ int maintenanceHelper() {
 /* this function is the helper function which performs most of
 the work for the manager thread's run queue. Returns 0 on failure,
 1 on success. */
-//TODO @bruno: implement and document this.
 int runQueueHelper() {
 	// first, check and see if the manager thread is still active after
 	// the last round of maintenance
@@ -574,7 +571,7 @@ int runQueueHelper() {
 	pnode *prev = currPnode;
 	while(currPnode != NULL) {
 		currId = currPnode->tid;
-		currTcb = tcbList[currId];
+		currTcb = tcbList[(unsigned int) currId];
 		// grab number of time slices allowed for the thread
 		int slicesLeft = currTcb->timeSlices;
 		// change status of current thread to running
@@ -587,6 +584,8 @@ int runQueueHelper() {
 		setitimer(ITIMER_VIRTUAL, &timer, NULL);
 
 		// swap contexts with this child thread.
+		current_exited = 0;
+		current_thread = currId;
 		swapcontext(&Manager, currTcb->context);
 		// if this context resumed and current_status is still THREAD_RUNNING,
 		// then thread ran to completion before being interrupted.
@@ -594,7 +593,7 @@ int runQueueHelper() {
 			// turn itimer off for this thread
 			timer.it_value.tv_sec = 0;
 			timer.it_value.tv_usec = 0;
-			// TODO @all: implement logic for the case where the user's thread
+			// TODO @bruno: implement logic for the case where the user's thread
 			// returns without explicitly calling pthread_exit().
 			// set thread's status to THREAD_DONE
 			currTcb->status = THREAD_DONE;
@@ -623,28 +622,28 @@ int VTALRMhandler(int signum) {
 	// to THREAD_INTERRUPTED
 	current_status = THREAD_INTERRUPTED;
 	// Set the current context back to Manager
+	current_thread = MAX_NUM_THREADS + 1;
 	setcontext(&Manager);
-	// TODO @all: figure out if there's anything else we really need
-	// to do in this case, since the manager thread handles housekeeping
-	// for the interrupted thread.
 }
 
 
 int init_manager_thread() {
-	//Get the current context (this is the main context)
+	// Get the current context (this is the main context)
 	getcontext(&Main);
-	//Point its uc_link to Manager (Manager is its "parent thread")
+	// Point its uc_link to Manager (Manager is its "parent thread")
 	Main.uc_link = Manager;
-	//initialize tcb for main
+	// initialize tcb for main
 	tcb *newTcb = createTcb(THREAD_READY, 0, Main.stack, Main);
-	//initialize global variables before adding Main's thread
-	//to the manager
-	//first, initialize array for MLPQ
+	// initialize global variables before adding Main's thread
+	// to the manager
+	// first, initialize array for MLPQ
 	pnode *temp[NUM_PRIORITY_LEVELS];
 	MLPQ = temp;
-	//next, initialize tcbList
+	// next, initialize tcbList
 	tcb *newTcbList[MAX_NUM_THREADS];
 	tcbList = newTcbList;
+	// initialize current_exited to 0
+	current_exited = 0;
 	// initialize all pointers in tcbList to NULL by default.
 	// convention will be that any non-active tcbList cell is
 	// set to NULL for ease of linear search functions.
@@ -734,18 +733,20 @@ int insertPnodeMLPQ(pnode *input, unsigned int level) {
 }
 
 int checkAndDeallocateStack(my_pthread_t tid) {
+	// make an unsigned int variable for tid
+	unsigned int tid_int = (unsigned int) tid;
 	// check if tcbList is NULL
 	if(tcbList == NULL) {
 		printf("Error! tcbList is NULL for checkAndDeallocateStack.\n");
-		return -1;
+		return 0;
 	}
 	// check if given a tid pointing to a valid tcb
-	if(tcbList[tid] == NULL) {
+	if(tcbList[tid_int] == NULL) {
 		printf("Error! Given tid is NULL for checkAndDeallocateStack.\n");
-		return -1;
+		return 0;
 	}
 	// grab stack pointer from stack_t member of thread's tcb
-	void *stack_ptr = tcbList[tid]->stack.ss_sp;
+	void *stack_ptr = tcbList[tid_int]->stack.ss_sp;
 	// set flag to indicate that a thread shares this stack.
 	// will be set to 1 if we find one that does.
 	int stackShared = 0;
@@ -753,7 +754,7 @@ int checkAndDeallocateStack(my_pthread_t tid) {
 	for(i = 0; i < tcbList.length; i++) {
 		// for any non-NULL tcb in the tcbList, that doesn't
 		// share our input's TID
-		if( (tcbList[i] != NULL) && (i != tid) ){
+		if( (tcbList[i] != NULL) && ((unsigned int) i != tid_int) ){
 			// compare its stack's ss_sp member to stack_ptr.
 			// if they share the same address (reference the same stack):
 			if(tcbList[i]->stack.ss_sp == stack_ptr) {
@@ -762,15 +763,28 @@ int checkAndDeallocateStack(my_pthread_t tid) {
 			}
 		}
 	}
-	// TODO @all: also implement a while loop that just runs through the
-	// runQueue and sees if any thread NOT sharing the input tid 
-	// shares the same stack.
+	
+	// go through the runQueue and see if any threads there share
+	// the same stack pointer
+	pnode *currPnode = runQueue;
+	while(currPnode != NULL) {
+		unsigned int curr_int = (unsigned int) currPnode->tid;
+		// if the current node's TID isn't the input's TID
+		if(tid_int != curr_int) {
+			// if the current node's stack is the same as the input
+			// node's stack
+			if(tcbList[curr_int]->stack.ss_sp == stack_ptr) {
+				// mark stackShared as 1
+				stackShared = 1;
+			}
+		}
+	}
 
-	// if after running this loop, we haven't found a thread that shares
+	// if after running these loops, we haven't found a thread that shares
 	// the stack, we deallocate the stack and return successfully.
 	if(stackShared == 0) {
 		// deallocate stack
-		free(tcbList[tid]->stack.ss_sp)
+		free(tcbList[tid_int]->stack.ss_sp)
 		return 1;
 	}
 	// otherwise, return.

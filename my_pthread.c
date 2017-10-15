@@ -100,6 +100,7 @@ unsigned int current_thread;
 
 /* The status of the currently-running thread (under the manager).
 Will either be THREAD_RUNNING or THREAD_INTERRUPTED. */
+threadStatus current_status;
 
 /* Boolean 1 if manager thread is active, otherwise 0 as globals
 are initialized to by default*/
@@ -593,6 +594,8 @@ int runQueueHelper() {
 			// turn itimer off for this thread
 			timer.it_value.tv_sec = 0;
 			timer.it_value.tv_usec = 0;
+			// TODO @all: implement logic for the case where the user's thread
+			// returns without explicitly calling pthread_exit().
 			// set thread's status to THREAD_DONE
 			currTcb->status = THREAD_DONE;
 		}
@@ -612,6 +615,7 @@ int runQueueHelper() {
 	}
 	return 1;
 }
+
 
 
 int VTALRMhandler(int signum) {

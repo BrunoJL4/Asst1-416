@@ -185,6 +185,9 @@ the work for the manager thread's run queue. Returns 0 on failure,
 1 on success. */
 int runQueueHelper();
 
+/* This is the signal handler for our timer. */
+int VTALRMhandler(int signum);
+
 /* Returns a pointer to a new tcb instance. */
 tcb *createTcb(threadStatus status, my_pthread_t id, stack_t stack, 
 	ucontext_t context, unsigned int timeSlices);

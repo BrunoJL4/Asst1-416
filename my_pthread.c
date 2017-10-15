@@ -94,17 +94,29 @@ ucontext_t Manager, Main, CurrentContext;
 //on a thread that didn't explicitly call it.
 unsigned int current_exited;
 
-//ID of the currently-running thread. -1 if manager,
-//if >=0 then some thread.
+/*ID of the currently-running thread. MAX_NUM_THREADS+1 if manager,
+otherwise then some child thread. */
 unsigned int current_thread;
+
+/* The status of the currently-running thread (under the manager).
+Will either be THREAD_RUNNING or THREAD_INTERRUPTED. */
 
 /* Boolean 1 if manager thread is active, otherwise 0 as globals
 are initialized to by default*/
 unsigned int manager_active;
 
 /* Status of currently-running thread. 
-TODO @bruno: determine if this is needed. */
 threadStatus currentStatus;
+
+/* Signal action struct used by runQueueHelper() for alarms. 
+Declared up here to prevent allocations from occurring
+each time the runQueueHelper() runs.*/
+struct sigaction sa;
+
+/* itimerval struct used by runQueueHelper() for alarms.
+Declared up here to prevent allocations from occurring
+each time the runQueueHelper() runs.*/
+struct itimerval timer;
 
 /* End global variable declarations. */
 
@@ -133,7 +145,7 @@ int my_pthread_create(my_pthread_t * thread, pthread_attr_t * attr, void *(*func
 	//any child context should link back to Manager
 	//upon finishing execution/being interrupted or preempted
 	context.uc_link = Manager;
-	//TODO @bruno: figure out what signals to actually mask, if any
+	//don't mask any signals, don't see why we would mask any.
 	context.uc_sigmask = 0;
 	//set context's stack to our allocated stack
 	context.uc_stack = stack;
@@ -226,7 +238,7 @@ void my_pthread_exit(void *value_ptr) {
 int my_pthread_join(my_pthread_t thread, void **value_ptr) {
             
     //what if thread doesn't exist?
-    if((tcpList[(int)thread] != NULL){
+    if((tcpList[(int)thread]) != NULL){
         printf(stderr, "pthread_join(): Target thread does not exist");
         return -1; //error
     }
@@ -545,6 +557,10 @@ int runQueueHelper() {
 		return 0;
 	}
 
+	// call signal handler for SIGVTALRM, which should activate
+	// each time we receive a SIGVTALRM
+	sigaction(SIGVTALRM, &sa, NULL);
+
 	// it begins with a populated runQueue. it needs to iterate through
 	// each thread and perform the necessary functions depending on
 	// the thread's status. the only valid status for a thread it
@@ -560,29 +576,51 @@ int runQueueHelper() {
 		int slicesLeft = currTcb->timeSlices;
 		// change status of current thread to running
 		currTcb->status = THREAD_RUNNING;
+		current_status = THREAD_RUNNING;
 		// setitimer for 25ms * the number of time slices allotted
 		// to this thread. set timer type to VIRTUAL_TIMER.
+		timer.it_value.tv_sec = 0;
+		timer.it_value.tv_usec = (25000) * slicesLeft;
+		setitimer(ITIMER_VIRTUAL, &timer, NULL);
 
 		// swap contexts with this child thread.
-
-		// if this context resumed and status is still THREAD_RUNNING,
+		swapcontext(&Manager, currTcb->context);
+		// if this context resumed and current_status is still THREAD_RUNNING,
 		// then thread ran to completion before being interrupted.
-		// just setitimer(0) for the itimer in order to shut it off for
-		// this thread.
-
-		// if this context  resumed and status is THREAD_INTERRUPTED,
+		if(current_status = THREAD_RUNNING) {
+			// turn itimer off for this thread
+			timer.it_value.tv_sec = 0;
+			timer.it_value.tv_usec = 0;
+			// set thread's status to THREAD_DONE
+			currTcb->status = THREAD_DONE;
+		}
+		// if this context  resumed and current_status is THREAD_INTERRUPTED,
 		// then the signal handler interrupted the child thread, which
 		// didn't get to run to completion.
-
-		// TODO @all: implement a signal handler that captures a
-		// SIGVTALRM signal, and checks 
-
-
-		
-
+		else if(current_status = THREAD_INTERRUPTED){
+			// Do nothing here, since thread's status was already set
+		}
+		// this branch shouldn't occur
+		else {
+			printf("Error! Thread %d in runQueue had non-valid status.\n", currId);
+			return 0;
+		}
+		// go to the next node in the runQueue
+		currPnode = currPnode->next;
 	}
-
 	return 1;
+}
+
+
+int VTALRMhandler(int signum) {
+	// We've interrupted a thread, so change the current_status
+	// to THREAD_INTERRUPTED
+	current_status = THREAD_INTERRUPTED;
+	// Set the current context back to Manager
+	setcontext(&Manager);
+	// TODO @all: figure out if there's anything else we really need
+	// to do in this case, since the manager thread handles housekeeping
+	// for the interrupted thread.
 }
 
 
@@ -622,6 +660,10 @@ int init_manager_thread() {
 	Manager.uc_sigmask = 0; //no signals being intentionally blocked
 	Manager.uc_stack = malloc(MEM); //new stack using specified stack size
 	makecontext(&Manager, (void*)&my_pthread_manager, 0);
+	// allocate memory for sa struct
+	memset(&sa, 0, sizeof(sa));
+	// install VTALRMhandler as the signal handler for SIGVTALRM
+	sa.sa_handler = &VTALRMhandler;
 	
 	return 1;
 }

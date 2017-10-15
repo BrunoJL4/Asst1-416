@@ -187,47 +187,63 @@ int my_pthread_create(my_pthread_t * thread, pthread_attr_t * attr, void *(*func
 /* give CPU pocession to other user level threads voluntarily */
 int my_pthread_yield() {
 
-    pidList[currentThread]->status = THREAD_YIELDED;
+    //set thread to yield, set current_thread to manager, swap contexts.
+    //manager will yield job in stage 1 of maintence
+    tcpList[currentThread]->status = THREAD_YIELDED;
+    current_thread = MAX_NUM_THREADS + 1;
     swapcontext(&CurrentContext, &Manager);
     return 1;
 
 }
 
 /* terminate a thread */
-//thread that calls join is dependent on target thread, sooo....
-//this thread (target thread) should be explicitly calling pthread_exit, providing it is joined
-//value_ptr: value that pthread_join caller will be using to complete task
 void my_pthread_exit(void *value_ptr) {
     
-    //is thread joined?
-    //if not
-        //implicit behaviour
-        /* Performing  a  return  from the start function of any thread other than
-        the main thread results in an implicit call  to  pthread_exit(),  using
-        the function's return value as the thread's exit status. */
+    //thread that the calling thread is joined to
+    my_pthread_t joinedThread = tcpList[currentThread]->waitingThread;
     
-    //if yes,
-        //set thread status to THREAD_FINISHED
-        //switch to manager, manager should take job off runtime during maintenence
+    //set current thread status to THREAD_FINISHED
+    tcpList[current_thread]->status == THREAD_FINISHED;
+    //set ret value
+    tcpList[(int)current_thread]->valuePtr = value_ptr];
+
+    //if thread was not joined, context goes back to manager thread
+    if(tcpList[current_thread]->waitingThrad == -1)
+        current_thread = MAX_NUM_THREADS + 1;
+        swapcontext(&CurrentContext, &Manager);
+    //if thread was joined, context goes back to joined thread
+    else{
+        current_thread = (int)joinedThread;
+        swapcontext(&CurrentContext, &tcpList[(int)joinedThread]->context);
+    }
+    
+    //@Bruno: current_exited var?
     
 }
 
+
 /* wait for thread termination */
 int my_pthread_join(my_pthread_t thread, void **value_ptr) {
-	//Does target thread exist?
-    //if(target thread been previously joined)
-        //creates undefined behavior - manpages
+            
+    //what if thread doesn't exist?
+    if((tcpList[(int)thread] != NULL){
+        printf(stderr, "pthread_join(): Target thread does not exist");
+        return -1; //error
+    }
+  
+    //join calling thread to the target thread
+    tcpList[(int)thread]->waitingThread = (my_pthread_t)currentThread;
+    //switch current thread to target thread
+    current_thread = (int)thread;
+    //switch over to context of target thread
+    swapcontext(&ManagerThread, &tcpList[(int)thread]->context);
     
-    /* ACTUAL WORK */
+    //implemented in manpages - if(target thread was cancelled){
     
-    //target thread HAS TO FINISH RUNNING before caller gets anymore cpu time
-    //i think above requires a context switch to target thread at this point
-    
-    //if(Target thread was cancelled)
-        //*RETVAL = PTHREAD_CANCEL
-        //return -1; => is this considered an error?
-    //if(exit's retval != null)
-        //value_ptr = exits retval's address;
+    //when context is switched back...
+    //collect target thread's value once thread is finished running
+    *value_ptr = tcpList[(int)thread]->valuePtr;
+        
     return 0; //success
 }
 

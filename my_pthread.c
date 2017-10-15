@@ -400,13 +400,15 @@ int maintenanceHelper() {
 	// housekeeping depending on the thread's status
 	pnode *currPnode = runQueue;
 	while(currPnode != NULL) {
-		my_pthread_t currId = currPnode->currId;
-		tcb *currTcb = tcbList[currId];
+		my_pthread_t currId = currPnode->tid;
+		tcb *currTcb = tcbList[(int)currId];
 		// if a runQueue thread's status is THREAD_DONE:
 		
 		// TODO @all: make sure that pnodes are pointing where
 		// they should, and that we understand the shape of
 		// the runQueue at different points of this loop.
+        // Took a look at this, made minor syntax changes, long as checkAndDeallocateStack
+        // and InsertPnodeMLPQ work as intended, stage 1 looks good. - Joe Gormley
 		if(currTcb->status == THREAD_DONE) {
 			// check for any threads that share the thread's
 			// stack, deallocate the stack if none share it.
@@ -416,7 +418,7 @@ int maintenanceHelper() {
 			// then deallocate its tcb through tcbList
 			free(currTcb);
 			// set tcbList[tid] to NULL
-			tcbList[currId] = NULL;
+			tcbList[(int)currId] = NULL;
 			// then deallocate its pnode in the run queue while
 			// moving currPnode to the next node.
 			pnode *temp = currPnode;
@@ -424,7 +426,7 @@ int maintenanceHelper() {
 			free(temp);
 		}
 		// if a runQueue thread's status is THREAD_INTERRUPTED:
-		else if(currPnode->status == THREAD_INTERRUPTED) {
+		else if(currTcb->status == THREAD_INTERRUPTED) {
 			// we insert the thread back into the MLPQ but at one lower
 			// priority level, also changing its priority member.
 			// then change its status to READY.
@@ -435,7 +437,7 @@ int maintenanceHelper() {
 			currTcb->status = THREAD_READY;
 		}
 		// if a runQueue thread is waiting or yielding
-		else if(currPnode->status == THREAD_WAITING || THREAD_YIELDED) {
+		else if(currTcb->status == THREAD_WAITING || currTcb->status == THREAD_YIELDED) {
 			// put the thread into the MLPQ at the same priority level,
 			// so that it can resume in subsequent runs when it's
 			// set to READY as the thread it's waiting on finishes

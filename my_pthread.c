@@ -170,7 +170,7 @@ int my_pthread_create(my_pthread_t * thread, pthread_attr_t * attr, void *(*func
 		//free the pnode for the recycled ID
 		free(ptr);
 		//make a new TCB from the gathered information
-		tcb *newTcb = createTcb(status, tid, stack, context, timeSlices);
+		tcb *newTcb = createTcb(status, tid, context.uc_stack, context, timeSlices);
 		//change the tcb instance in tcbList[id] to this tcb
 		tcbList[(unsigned int) tid] = newTcb;
 		// insert a pnode containing the ID at Level 0 of MLPQ
@@ -179,7 +179,7 @@ int my_pthread_create(my_pthread_t * thread, pthread_attr_t * attr, void *(*func
 		return tid;
 	}
 	// if still using new ID's, just use threadsSoFar as the index and increment it
-	tcb *newTcb = createTcb(status, tid, stack, context, timeSlices);
+	tcb *newTcb = createTcb(status, tid, context.uc_stack, context, timeSlices);
 	// add the new tcb to the tcbList at the cell corresponding to its ID
 	tcbList[threadsSoFar] = newTcb;
 	// insert a pnode containing the ID at Level 0 of MLPQ
@@ -384,13 +384,7 @@ int my_pthread_manager() {
 		}
 	}
 	// We only reach this point when maintenanceHelper()
-	// has set manager_active to 0
-	if(manager_active == 0) {
-		// free the manager context... don't free the
-		// stack, though, because we still need to run
-		// on that to return
-		free(&Manager);
-	}
+	// has set manager_active to 0. Leave the function.
 	return 1;
 }
 

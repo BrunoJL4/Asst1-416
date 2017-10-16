@@ -206,6 +206,4 @@ shared, then deallocate the stack. Returns 0 on failure,
 1 on success. */
 int checkAndDeallocateStack(my_pthread_t tid)
 
-//TODO @bruno: add macro for run queue alarm signal handler.
-
 #endif

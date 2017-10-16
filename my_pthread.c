@@ -120,7 +120,9 @@ struct itimerval timer;
 /* my_pthread and mutex function implementations */
 
 /* create a new thread */
-int my_pthread_create(my_pthread_t * thread, pthread_attr_t * attr, void *(*function)(void*), void * arg) {
+int my_pthread_create(my_pthread_t * thread, pthread_attr_t * attr,
+	void *(*function)(void*), void * arg) {
+	printf("entered my_pthread_create()!\n");
 	//check that manager thread exists	
 	//init if it does not
 	if (manager_active != 1) {
@@ -196,7 +198,7 @@ int my_pthread_create(my_pthread_t * thread, pthread_attr_t * attr, void *(*func
 
 /* give CPU pocession to other user level threads voluntarily */
 int my_pthread_yield() {
-
+	printf("entered my_pthread_yield()!\n");
     //set thread to yield, set current_thread to manager, swap contexts.
     //manager will yield job in stage 1 of maintence
     tcbList[(unsigned int) current_thread]->status = THREAD_YIELDED;
@@ -209,7 +211,7 @@ int my_pthread_yield() {
 /* terminate a thread and fill in the value_ptr of the
 thread waiting on it, if any */
 void my_pthread_exit(void *value_ptr) {
-
+	printf("entered my_pthread_exit()!\n");
 	// create unsigned int version of current thread to reduce casts
     unsigned int current_thread_int = (unsigned int) current_thread;
 
@@ -231,7 +233,7 @@ void my_pthread_exit(void *value_ptr) {
 
 /* wait for thread termination */
 int my_pthread_join(my_pthread_t thread, void **value_ptr) {
-
+	printf("entered my_pthread_join()!\n");
      // create unsigned int version of current thread to reduce casts
     unsigned int thread_int = (unsigned int) thread;
 
@@ -263,6 +265,7 @@ int my_pthread_join(my_pthread_t thread, void **value_ptr) {
 
 /* initial the mutex lock */
 int my_pthread_mutex_init(my_pthread_mutex_t *mutex, const pthread_mutexattr_t *attr) {
+	printf("entered my_mutex_init()!\n");
 	//Check if mutex is initialized
 	//if so, return
 	if (&mutex != NULL) {
@@ -280,6 +283,7 @@ int my_pthread_mutex_init(my_pthread_mutex_t *mutex, const pthread_mutexattr_t *
 
 /* aquire the mutex lock */
 int my_pthread_mutex_lock(my_pthread_mutex_t *mutex) {
+	printf("entered my_pthread_mutex_lock()!\n");
 	//Call my_pthread_mutex_init
 	//calling with NULL attr argument sets the property to default
 	my_pthread_mutex_init(mutex, NULL);
@@ -318,6 +322,7 @@ int my_pthread_mutex_lock(my_pthread_mutex_t *mutex) {
 
 /* release the mutex lock */
 int my_pthread_mutex_unlock(my_pthread_mutex_t *mutex) {
+	printf("entered my_pthread_mutex_unlock()!\n");
 	//If mutex is NOT initialized
 	//user did something bad
 	if (&mutex == NULL) {
@@ -346,6 +351,7 @@ int my_pthread_mutex_unlock(my_pthread_mutex_t *mutex) {
 
 /* destroy the mutex */
 int my_pthread_mutex_destroy(my_pthread_mutex_t *mutex) {
+	printf("entered my_pthread_mutex_destroy()!\n");
 	//If mutex is NOT initialized
 	if (&mutex == NULL) {
 		return -1;
@@ -365,6 +371,7 @@ int my_pthread_mutex_destroy(my_pthread_mutex_t *mutex) {
 /* Carries out the manager thread responsibilities.
 Returns 0 on failure, 1 on success. */
 int my_pthread_manager() {
+	printf("entered my_pthread_manager()!\n");
 	// check if manager is still considered "active"
 	while(manager_active == 1) {
 		// perform maintenance cycle
@@ -394,7 +401,7 @@ int my_pthread_manager() {
 the manager thread's maintenance cycle. Returns 0 on failure,
 1 on success.*/
 int maintenanceHelper() {
-
+	printf("entered maintenanceHelper()!\n");
 	// first part: clearing the run queue, and performing
 	// housekeeping depending on the thread's status
 	pnode *currPnode = runQueue;
@@ -542,6 +549,7 @@ int maintenanceHelper() {
 the work for the manager thread's run queue. Returns 0 on failure,
 1 on success. */
 int runQueueHelper() {
+	printf("entered runQueueHelper()!\n");
 	// first, check and see if the manager thread is still active after
 	// the last round of maintenance
 	if(manager_active == 0) {
@@ -590,7 +598,6 @@ int runQueueHelper() {
 			// turn itimer off for this thread
 			timer.it_value.tv_sec = 0;
 			timer.it_value.tv_usec = 0;
-            //@
             if(current_exited == 0){ //implicit exit
                 current_thread = tcbList[(unsigned int) currID]->tid;
                 mypthread_exit(NULL);
@@ -617,6 +624,8 @@ int runQueueHelper() {
 
 
 int VTALRMhandler(int signum) {
+	// DO NOT PUT A PRINT MESSAGE IN A SIGNAL HANDLER!!!
+
 	// We've interrupted a thread, so change the current_status
 	// to THREAD_INTERRUPTED
 	current_status = THREAD_INTERRUPTED;
@@ -627,6 +636,7 @@ int VTALRMhandler(int signum) {
 
 
 int init_manager_thread() {
+	printf("entered init_manager_thread()!\n");
 	// Get the current context (this is the main context)
 	getcontext(&Main);
 	// Point its uc_link to Manager (Manager is its "parent thread")
@@ -675,6 +685,7 @@ int init_manager_thread() {
 
 tcb *createTcb(threadStatus status, my_pthread_t tid, stack_t stack, 
 	ucontext_t context) {
+	printf("entered createTcb()!\n");
 	// allocate memory for tcb instance
 	tcb *ret = (tcb*) malloc(sizeof(tcb));
 	// set members to inputs
@@ -694,6 +705,7 @@ tcb *createTcb(threadStatus status, my_pthread_t tid, stack_t stack,
 
 
 pnode *createPnode(my_pthread_t tid) {
+	printf("entered createPnode()!\n");
 	pnode *ret = (pnode*) malloc(sizeof(pnode));
 	ret->tid = tid;
 	ret->next = NULL;
@@ -701,6 +713,7 @@ pnode *createPnode(my_pthread_t tid) {
 }
 
 int insertPnodeMLPQ(pnode *input, unsigned int level) {
+	printf("entered insertPnodeMLPQ()!\n");
 	if(MLPQ == NULL) {
 		return 0;
 	}
@@ -732,6 +745,7 @@ int insertPnodeMLPQ(pnode *input, unsigned int level) {
 }
 
 int checkAndDeallocateStack(my_pthread_t tid) {
+	printf("entered checkAndDeallocateStack()!\n");
 	// make an unsigned int variable for tid
 	unsigned int tid_int = (unsigned int) tid;
 	// check if tcbList is NULL

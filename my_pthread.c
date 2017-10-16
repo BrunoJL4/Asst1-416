@@ -102,8 +102,8 @@ int current_status;
 are initialized to by default*/
 unsigned int manager_active;
 
-/* Status of currently-running thread. 
-threadStatus currentStatus;
+/* Status of currently-running thread. */
+enum threadStatus currentStatus;
 
 /* Signal action struct used by runQueueHelper() for alarms. 
 Declared up here to prevent allocations from occurring
@@ -590,20 +590,20 @@ int runQueueHelper() {
 		swapcontext(&Manager, &(currTcb->context));
 		// if this context resumed and current_status is still THREAD_RUNNING,
 		// then thread ran to completion before being interrupted.
-		if(current_status = THREAD_RUNNING) {
+		if(current_status == THREAD_RUNNING) {
 			// turn itimer off for this thread
 			timer.it_value.tv_sec = 0;
 			timer.it_value.tv_usec = 0;
             if(current_exited == 0){ //implicit exit
                 current_thread = tcbList[(unsigned int) currId]->tid;
-                mypthread_exit(NULL);
+                my_pthread_exit(NULL);
             }
 			currTcb->status = THREAD_DONE;
 		}
 		// if this context  resumed and current_status is THREAD_INTERRUPTED,
 		// then the signal handler interrupted the child thread, which
 		// didn't get to run to completion.
-		else if(current_status = THREAD_INTERRUPTED){
+		else if(current_status == THREAD_INTERRUPTED){
 			// Do nothing here, since thread's status was already set
 		}
 		// this branch shouldn't occur
@@ -715,7 +715,7 @@ int insertPnodeMLPQ(pnode *input, unsigned int level) {
 	if(input == NULL) {
 		return 0;
 	}
-	if(level < 0 || level > NUM_PRIORITY_LEVELS) {
+	if(level > NUM_PRIORITY_LEVELS) {
 		return 0;
 	}
 	// error-checking done, begin insertion.

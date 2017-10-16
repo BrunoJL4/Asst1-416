@@ -200,7 +200,7 @@ int my_pthread_create(my_pthread_t * thread, pthread_attr_t * attr,
 int my_pthread_yield() {
 	printf("entered my_pthread_yield()!\n");
     //set thread to yield, set current_thread to manager, swap contexts.
-    //manager will yield job in stage 1 of maintence
+    //manager will yield job in stage 1 of maintenance
     tcbList[(unsigned int) current_thread]->status = THREAD_YIELDED;
     current_thread = MAX_NUM_THREADS + 1;
     swapcontext(&CurrentContext, &Manager);
@@ -317,7 +317,7 @@ int my_pthread_mutex_lock(my_pthread_mutex_t *mutex) {
 	//Set mutex owner to current thread
 	mutex->ownerID = current_thread;
 	
-	return 0;
+	return 1;
 }
 
 /* release the mutex lock */
@@ -326,18 +326,18 @@ int my_pthread_mutex_unlock(my_pthread_mutex_t *mutex) {
 	//If mutex is NOT initialized
 	//user did something bad
 	if (&mutex == NULL) {
-		return -1;
+		return 0;
 	//Elif mutex does not belong to us
 	//we can't unlock it
 	} else if (mutex->ownerID != current_thread) {
-		return -1;
+		return 0;
 	}
 	//otherwise unlock mutex
 	mutex->status = UNLOCKED;
 	//Check waiting queue, destroy mutex if there is no more use
 	if (mutex->waitQueue == NULL) {
 		my_pthread_mutex_destroy(mutex);
-		return 0;
+		return 1;
 	}
 	//alert the next available thread & remove it from queue/add back to run queue
 	pnode *ptr = mutex->waitQueue;
@@ -346,7 +346,7 @@ int my_pthread_mutex_unlock(my_pthread_mutex_t *mutex) {
 	tcbList[(unsigned int) ptr->tid]->status = THREAD_READY;
 	free(ptr);
 	
-	return 0;
+	return 1;
 }
 
 /* destroy the mutex */
@@ -354,15 +354,15 @@ int my_pthread_mutex_destroy(my_pthread_mutex_t *mutex) {
 	printf("entered my_pthread_mutex_destroy()!\n");
 	//If mutex is NOT initialized
 	if (&mutex == NULL) {
-		return -1;
+		return 0;
 	//Elif mutex is locked
 	} else if (mutex->status == LOCKED) {
-		return -1;
+		return 0;
 	}	
 	//otherwise, free the memory used
 	free(mutex);
 		
-	return 0;
+	return 1;
 }
 
 

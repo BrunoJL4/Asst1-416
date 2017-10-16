@@ -131,23 +131,22 @@ int my_pthread_create(my_pthread_t * thread, pthread_attr_t * attr, void *(*func
 	//thread should be ready to run by default
 	int status = THREAD_READY;
 	my_pthread_t tid = threadsSoFar;
-	//allocating MEM bytes for the stack
-	//TODO @all: why is stack_t undefined?
-	stack_t stack = malloc(MEM);
+	// set aside a stack for the user
+	char stack[MEM];
+	// set the stack pointer for the user's context
 	//time slices is 0 by default
 	unsigned int timeSlices = 0;
 	ucontext_t context;
 	//initialize context, fill it in with current
 	//context's information
 	getcontext(&context);
-	//assign context's members
-	//any child context should link back to Manager
-	//upon finishing execution/being interrupted or preempted
+	// any child context should link back to Manager
+	// upon finishing execution/being interrupted or preempted
 	context.uc_link = &Manager;
-	//don't mask any signals, don't see why we would mask any.
-	//incompatible types: context.uc_sigmask = 0;
-	//set context's stack to our allocated stack
-	context.uc_stack = stack;
+	// set new context's stack to our allocated stack
+	context.uc_stack.ss_sp = stack;
+	// set new context's stack size to size of allocated stack
+	context.uc_stack.ss_size = sizeof(stack);
 	//turns out that functions called through pthread always take 0 or 1 arguments
 	//therefore the functions called by the user must always take some type of struct (void *) 
 	//if they wish to pass multiple args
@@ -412,12 +411,7 @@ int maintenanceHelper() {
         // Took a look at this, made minor syntax changes, long as checkAndDeallocateStack
         // and InsertPnodeMLPQ work as intended, stage 1 looks good. - Joe Gormley
 		if(currTcb->status == THREAD_DONE) {
-			// check for any threads that share the thread's
-			// stack, deallocate the stack if none share it.
-			checkAndDeallocateStack(currId);
-			// deallocate the context
-			//you can't free a context, it was never malloc'd: free(currTcb->context);
-			// then deallocate its tcb through tcbList
+			// deallocate the thread's tcb through tcbList
 			free(currTcb);
 			// set tcbList[tid] to NULL
 			tcbList[(unsigned int)currId] = NULL;
@@ -426,6 +420,12 @@ int maintenanceHelper() {
 			pnode *temp = currPnode;
 			currPnode = currPnode->next;
 			free(temp);
+			// TODO @bruno: add functionality for storing the number of cycles a
+			// thread has waited in the MLPQ to get a chance to run. increase
+			// the thread's priority if it's waited x cycles. we will set the
+			// cycles to 0 once a thread is added to the runQueue, and will
+			// increase the cycles of each THREAD_READY thread by 1 each time
+			// we look through the MLPQ.
 		}
 		// if a runQueue thread's status is THREAD_INTERRUPTED:
 		else if(currTcb->status == THREAD_INTERRUPTED) {
@@ -662,15 +662,21 @@ int init_manager_thread() {
 	tcbList[0] = newTcb;
 	threadsSoFar = 1;
 	runQueue = NULL;
-	//set manager_active to 1
+	// set manager_active to 1
 	manager_active = 1;
-	//actually set up and make the context for manager thread
+	// initialize manager thread's context
 	getcontext(&Manager);
-	Manager.uc_link = 0; //no other context will resume after the manager leaves
-	//incompatible types: Manager.uc_sigmask = 0; //no signals being intentionally blocked
-	Manager.uc_stack = malloc(MEM); //new stack using specified stack size
+	// this is the stack that will be used by the manager context
+	char manager_stack[MEM];
+	// point the manager's stack pointer to the manager_stack we just set
+	Manager.uc_stack.ss_sp = manager_stack;
+	// set the manager's stack size to MEM
+	Manager.uc_stack.ss_size = sizeof(manager_stack);
+	// no other context will resume after the manager leaves
+	Manager.uc_link = NULL;
+	// attach manager context to my_pthread_manager()
 	makecontext(&Manager, (void*)&my_pthread_manager, 0);
-	// allocate memory for sa struct
+	// allocate memory for signal alarm struct
 	memset(&sa, 0, sizeof(sa));
 	// install VTALRMhandler as the signal handler for SIGVTALRM
 	sa.sa_handler = &VTALRMhandler;
@@ -736,65 +742,5 @@ int insertPnodeMLPQ(pnode *input, unsigned int level) {
 	// input->next is set to NULL (in case we inserted a thread
 	// from the runQueue)
 	input->next = NULL;
-	return 1;
-}
-
-int checkAndDeallocateStack(my_pthread_t tid) {
-	printf("entered checkAndDeallocateStack()!\n");
-	// make an unsigned int variable for tid
-	unsigned int tid_int = (unsigned int) tid;
-	// check if tcbList is NULL
-	if(tcbList == NULL) {
-		printf("Error! tcbList is NULL for checkAndDeallocateStack.\n");
-		return 0;
-	}
-	// check if given a tid pointing to a valid tcb
-	if(tcbList[tid_int] == NULL) {
-		printf("Error! Given tid is NULL for checkAndDeallocateStack.\n");
-		return 0;
-	}
-	// grab stack pointer from stack_t member of thread's tcb
-	void *stack_ptr = tcbList[tid_int]->stack.ss_sp;
-	// set flag to indicate that a thread shares this stack.
-	// will be set to 1 if we find one that does.
-	int stackShared = 0;
-	int i;
-	for(i = 0; i < sizeof(tcbList); i++) {
-		// for any non-NULL tcb in the tcbList, that doesn't
-		// share our input's TID
-		if( (tcbList[i] != NULL) && ((unsigned int) i != tid_int) ){
-			// compare its stack's ss_sp member to stack_ptr.
-			// if they share the same address (reference the same stack):
-			if(tcbList[i]->stack.ss_sp == stack_ptr) {
-				// mark stackShared as 1.
-				stackShared = 1;
-			}
-		}
-	}
-	
-	// go through the runQueue and see if any threads there share
-	// the same stack pointer
-	pnode *currPnode = runQueue;
-	while(currPnode != NULL) {
-		unsigned int curr_int = (unsigned int) currPnode->tid;
-		// if the current node's TID isn't the input's TID
-		if(tid_int != curr_int) {
-			// if the current node's stack is the same as the input
-			// node's stack
-			if(tcbList[curr_int]->stack.ss_sp == stack_ptr) {
-				// mark stackShared as 1
-				stackShared = 1;
-			}
-		}
-	}
-
-	// if after running these loops, we haven't found a thread that shares
-	// the stack, we deallocate the stack and return successfully.
-	if(stackShared == 0) {
-		// deallocate stack
-		free(tcbList[tid_int]->stack.ss_sp);
-		return 1;
-	}
-	// otherwise, return.
 	return 1;
 }

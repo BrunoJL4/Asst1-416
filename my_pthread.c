@@ -593,9 +593,11 @@ int runQueueHelper() {
 			// turn itimer off for this thread
 			timer.it_value.tv_sec = 0;
 			timer.it_value.tv_usec = 0;
-			// TODO @bruno: implement logic for the case where the user's thread
-			// returns without explicitly calling pthread_exit().
-			// set thread's status to THREAD_DONE
+            //@
+            if(current_exited == 0){ //implicit exit
+                current_thread = tcbList[(unsigned int) currID]->tid;
+                mypthread_exit(NULL);
+            }
 			currTcb->status = THREAD_DONE;
 		}
 		// if this context  resumed and current_status is THREAD_INTERRUPTED,

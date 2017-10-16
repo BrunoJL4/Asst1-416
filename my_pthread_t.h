@@ -20,6 +20,7 @@
 #include <sys/types.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 typedef uint my_pthread_t;
 
@@ -27,11 +28,11 @@ typedef uint my_pthread_t;
 enum threadStatus {
 	THREAD_RUNNING = 0,
 	THREAD_READY = 1,
-	THREAD_BLOCKED = 2
+	THREAD_BLOCKED = 2,
 	THREAD_WAITING = 3,
 	THREAD_DONE = 4,
-	THREAD_INTERRUPTED = 5
-    THREAD_YIELDED = 6
+	THREAD_INTERRUPTED = 5,
+	THREAD_YIELDED = 6
 };
 
 /* Our own enums describing mutex lock status. */
@@ -52,7 +53,7 @@ typedef struct threadControlBlock {
 	is currently running, whether it's ready to run but isn't, 
 	or whether it's blocked. Can add additional enums
 	as we go forward. */
-	threadStatus status;
+	int status;
 
 	/* The thread's ID. Due to structure for storing tcb's
 	inherently being the thread's ID, this might be redundant.*/
@@ -91,26 +92,6 @@ typedef struct threadControlBlock {
 } tcb; 
 
 
-/* Mutex struct definition */
-typedef struct my_pthread_mutex_t {
-	/* UNLOCKED or LOCKED */
-	lockStatus status;
-
-	/* Threads waiting for this lock */
-	pnode *waitQueue;
-	
-	/* Current thread that owns this lock */
-	my_pthread_t ownerID;
-	
-	/* Mutex attribute */
-	const pthread_mutexattr_t *attr;
-	
-} my_pthread_mutex_t;
-
-
-/* define your data structures here: */
-
-
 /* Data structure for linked lists of my_pthread_t values.
 
 This struct will be used in the tcb to store linked lists of my_pthread_t's, or
@@ -122,14 +103,31 @@ Thread ID's/TID's for short. The list of usages of pnodes is as follows:
 
  */
 typedef struct my_pthread_node {
-	/* The ID of the thread being referenced by this pnode. */
-	my_pthread_t tid;
+        /* The ID of the thread being referenced by this pnode. */
+        my_pthread_t tid;
 
-	/* The next pnode in the list. */
-	my_pthread_node *next;
+        /* The next pnode in the list. */
+        struct my_pthread_node *next;
 
 
 } pnode;
+
+
+/* Mutex struct definition */
+typedef struct my_pthread_mutex_t {
+	/* UNLOCKED or LOCKED */
+	int status;
+
+	/* Threads waiting for this lock */
+	pnode *waitQueue;
+	
+	/* Current thread that owns this lock */
+	my_pthread_t ownerID;
+	
+	/* Mutex attribute */
+	const pthread_mutexattr_t *attr;
+	
+} my_pthread_mutex_t;
 
 
 // Feel free to add your own auxiliary data structures
@@ -189,8 +187,7 @@ int runQueueHelper();
 int VTALRMhandler(int signum);
 
 /* Returns a pointer to a new tcb instance. */
-tcb *createTcb(threadStatus status, my_pthread_t id, stack_t stack, 
-	ucontext_t context, unsigned int timeSlices);
+tcb *createTcb(int status, my_pthread_t id, stack_t stack, ucontext_t context, unsigned int timeSlices);
 
 /* Returns a pointer to a new pnode instance. */
 pnode *createPnode(my_pthread_t tid);
@@ -204,6 +201,6 @@ int insertPnodeMLPQ(pnode *input, unsigned int level);
 share the same stack as its context. If the stack is not being
 shared, then deallocate the stack. Returns 0 on failure,
 1 on success. */
-int checkAndDeallocateStack(my_pthread_t tid)
+int checkAndDeallocateStack(my_pthread_t tid);
 
 #endif

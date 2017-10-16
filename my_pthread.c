@@ -96,7 +96,7 @@ my_pthread_t current_thread;
 
 /* The status of the currently-running thread (under the manager).
 Will either be THREAD_RUNNING or THREAD_INTERRUPTED. */
-threadStatus current_status;
+int current_status;
 
 /* Boolean 1 if manager thread is active, otherwise 0 as globals
 are initialized to by default*/
@@ -120,8 +120,7 @@ struct itimerval timer;
 /* my_pthread and mutex function implementations */
 
 /* create a new thread */
-int my_pthread_create(my_pthread_t * thread, pthread_attr_t * attr,
-	void *(*function)(void*), void * arg) {
+int my_pthread_create(my_pthread_t * thread, pthread_attr_t * attr, void *(*function)(void*), void * arg) {
 	printf("entered my_pthread_create()!\n");
 	//check that manager thread exists	
 	//init if it does not
@@ -130,9 +129,10 @@ int my_pthread_create(my_pthread_t * thread, pthread_attr_t * attr,
 	}
 	//set information for new child thread's context
 	//thread should be ready to run by default
-	threadStatus status = THREAD_READY;
+	int status = THREAD_READY;
 	my_pthread_t tid = threadsSoFar;
 	//allocating MEM bytes for the stack
+	//TODO @all: why is stack_t undefined?
 	stack_t stack = malloc(MEM);
 	//time slices is 0 by default
 	unsigned int timeSlices = 0;
@@ -143,9 +143,9 @@ int my_pthread_create(my_pthread_t * thread, pthread_attr_t * attr,
 	//assign context's members
 	//any child context should link back to Manager
 	//upon finishing execution/being interrupted or preempted
-	context.uc_link = Manager;
+	context.uc_link = &Manager;
 	//don't mask any signals, don't see why we would mask any.
-	context.uc_sigmask = 0;
+	//incompatible types: context.uc_sigmask = 0;
 	//set context's stack to our allocated stack
 	context.uc_stack = stack;
 	//turns out that functions called through pthread always take 0 or 1 arguments
@@ -199,12 +199,12 @@ int my_pthread_create(my_pthread_t * thread, pthread_attr_t * attr,
 /* give CPU pocession to other user level threads voluntarily */
 int my_pthread_yield() {
 	printf("entered my_pthread_yield()!\n");
-    //set thread to yield, set current_thread to manager, swap contexts.
-    //manager will yield job in stage 1 of maintenance
-    tcbList[(unsigned int) current_thread]->status = THREAD_YIELDED;
-    current_thread = MAX_NUM_THREADS + 1;
-    swapcontext(&CurrentContext, &Manager);
-    return 1;
+	//set thread to yield, set current_thread to manager, swap contexts.
+	//manager will yield job in stage 1 of maintenance
+	tcbList[(unsigned int) current_thread]->status = THREAD_YIELDED;
+	current_thread = MAX_NUM_THREADS + 1;
+	swapcontext(&CurrentContext, &Manager);
+	return 1;
 
 }
 
@@ -221,7 +221,7 @@ void my_pthread_exit(void *value_ptr) {
     // if the thread has another thread waiting on it (joined this thread),
     // set its valuePtr member accordingly
     if(joinedThread != -1) {
-    	joinedThread->valuePtr = value_ptr;
+    	tcbList[joinedThread]->valuePtr = value_ptr;
     }
     
     // swap back to the Manager context
@@ -239,8 +239,7 @@ int my_pthread_join(my_pthread_t thread, void **value_ptr) {
 
     //what if thread doesn't exist?
     if((tcbList[thread_int]) == NULL){
-        printf(stderr, "pthread_join(): Target thread %d does
-        	not exist!\n", thread_int);
+        fprintf(stderr, "pthread_join(): Target thread %d does not exist!\n", thread_int);
         return 0;
     }
   
@@ -273,7 +272,7 @@ int my_pthread_mutex_init(my_pthread_mutex_t *mutex, const pthread_mutexattr_t *
 	}
 	//otherwise, initialize mutex
 	mutex = malloc(sizeof(my_pthread_mutex_t));
-	mutex->status = UNLOCKED
+	mutex->status = UNLOCKED;
 	mutex->waitQueue = NULL;
 	mutex->ownerID = -1;
 	mutex->attr = attr;
@@ -417,7 +416,7 @@ int maintenanceHelper() {
 			// stack, deallocate the stack if none share it.
 			checkAndDeallocateStack(currId);
 			// deallocate the context
-			free(currTcb->context);
+			//you can't free a context, it was never malloc'd: free(currTcb->context);
 			// then deallocate its tcb through tcbList
 			free(currTcb);
 			// set tcbList[tid] to NULL
@@ -451,8 +450,7 @@ int maintenanceHelper() {
 		}
 		// if a runQueue thread's status isn't any of the four above:
 		else{
-			printf("Error! Thread in runQueue found to have invalid status
-				during maintenance cycle.\n");
+			printf("Error! Thread in runQueue found to have invalid status during maintenance cycle.\n");
 			return 0;
 		}
 	}
@@ -466,7 +464,7 @@ int maintenanceHelper() {
 	// is invalid and not ready to go in the run queue.
 	int timeSlicesLeft = 20;
 	int i;
-	for(i = 0; i < MLPQ.length; i++) {
+	for(i = 0; i < sizeof(MLPQ); i++) {
 		// formula for priority levels v. time slices: 2^(level)
 		int numSlices = round(pow(2, i)); // round() used to turn pow() to int val
 		// if we don't have enough timeSlices left to distribute to any node in
@@ -497,7 +495,7 @@ int maintenanceHelper() {
 				// second case: pnode isn't first node (e.g. is
 				// in the middle or is the last node)
 				else{
-					prev->next = curr->next;
+					prev->next = currPnode->next;
 				}
 				// add the tempCurr ptr to the end of the runQueue.
 				pnode *temp = runQueue;
@@ -525,11 +523,11 @@ int maintenanceHelper() {
 		int mlpq_empty = 1;
 		int i;
 		// check and see if all queues in MLPQ are empty.
-		for(i = 0; i < MLPQ.length; i++) {
+		for(i = 0; i < sizeof(MLPQ); i++) {
 			if(MLPQ[i] != NULL) {
 				break;
 			}
-			if(i == (MLPQ.length - 1)) {
+			if(i == (sizeof(MLPQ) - 1)) {
 				mlpq_empty = 0;
 			}
 		}
@@ -556,9 +554,7 @@ int runQueueHelper() {
 		return 1;
 	}
 	if(runQueue == NULL) {
-		printf("Error! Went into runQueueHelper() without a 
-			populated runQueue. There must be an issue in the MLPQ 
-			not resolved in maintenanceHelper().\n");
+		printf("Error! Went into runQueueHelper() without a populated runQueue. There must be an issue in the MLPQ not resolved in maintenanceHelper().\n");
 		return 0;
 	}
 
@@ -575,8 +571,8 @@ int runQueueHelper() {
 	pnode *currPnode = runQueue;
 	pnode *prev = currPnode;
 	while(currPnode != NULL) {
-		currId = currPnode->tid;
-		currTcb = tcbList[(unsigned int) currId];
+		my_pthread_t currId = currPnode->tid;
+		tcb *currTcb = tcbList[(unsigned int) currId];
 		// grab number of time slices allowed for the thread
 		int slicesLeft = currTcb->timeSlices;
 		// change status of current thread to running
@@ -591,7 +587,7 @@ int runQueueHelper() {
 		// swap contexts with this child thread.
 		current_exited = 0;
 		current_thread = currId;
-		swapcontext(&Manager, currTcb->context);
+		swapcontext(&Manager, &(currTcb->context));
 		// if this context resumed and current_status is still THREAD_RUNNING,
 		// then thread ran to completion before being interrupted.
 		if(current_status = THREAD_RUNNING) {
@@ -599,7 +595,7 @@ int runQueueHelper() {
 			timer.it_value.tv_sec = 0;
 			timer.it_value.tv_usec = 0;
             if(current_exited == 0){ //implicit exit
-                current_thread = tcbList[(unsigned int) currID]->tid;
+                current_thread = tcbList[(unsigned int) currId]->tid;
                 mypthread_exit(NULL);
             }
 			currTcb->status = THREAD_DONE;
@@ -640,9 +636,9 @@ int init_manager_thread() {
 	// Get the current context (this is the main context)
 	getcontext(&Main);
 	// Point its uc_link to Manager (Manager is its "parent thread")
-	Main.uc_link = Manager;
+	Main.uc_link = &Manager;
 	// initialize tcb for main
-	tcb *newTcb = createTcb(THREAD_READY, 0, Main.stack, Main);
+	tcb *newTcb = createTcb(THREAD_READY, 0, Main.uc_stack, Main, 0);
 	// initialize global variables before adding Main's thread
 	// to the manager
 	// first, initialize array for MLPQ
@@ -657,7 +653,7 @@ int init_manager_thread() {
 	// convention will be that any non-active tcbList cell is
 	// set to NULL for ease of linear search functions.
 	int i;
-	for(i = 0; i < tcbList.length; i++) {
+	for(i = 0; i < sizeof(tcbList); i++) {
 		tcbList[i] = NULL;
 	}
 	//now add pnode with Main thread's ID (0) to MLPQ
@@ -671,7 +667,7 @@ int init_manager_thread() {
 	//actually set up and make the context for manager thread
 	getcontext(&Manager);
 	Manager.uc_link = 0; //no other context will resume after the manager leaves
-	Manager.uc_sigmask = 0; //no signals being intentionally blocked
+	//incompatible types: Manager.uc_sigmask = 0; //no signals being intentionally blocked
 	Manager.uc_stack = malloc(MEM); //new stack using specified stack size
 	makecontext(&Manager, (void*)&my_pthread_manager, 0);
 	// allocate memory for sa struct
@@ -683,8 +679,7 @@ int init_manager_thread() {
 }
 
 
-tcb *createTcb(threadStatus status, my_pthread_t tid, stack_t stack, 
-	ucontext_t context) {
+tcb *createTcb(int status, my_pthread_t tid, stack_t stack, ucontext_t context, unsigned int timeSlizes) {
 	printf("entered createTcb()!\n");
 	// allocate memory for tcb instance
 	tcb *ret = (tcb*) malloc(sizeof(tcb));
@@ -764,7 +759,7 @@ int checkAndDeallocateStack(my_pthread_t tid) {
 	// will be set to 1 if we find one that does.
 	int stackShared = 0;
 	int i;
-	for(i = 0; i < tcbList.length; i++) {
+	for(i = 0; i < sizeof(tcbList); i++) {
 		// for any non-NULL tcb in the tcbList, that doesn't
 		// share our input's TID
 		if( (tcbList[i] != NULL) && ((unsigned int) i != tid_int) ){
@@ -797,7 +792,7 @@ int checkAndDeallocateStack(my_pthread_t tid) {
 	// the stack, we deallocate the stack and return successfully.
 	if(stackShared == 0) {
 		// deallocate stack
-		free(tcbList[tid_int]->stack.ss_sp)
+		free(tcbList[tid_int]->stack.ss_sp);
 		return 1;
 	}
 	// otherwise, return.

@@ -206,7 +206,8 @@ int my_pthread_yield() {
 
 }
 
-/* terminate a thread */
+/* terminate a thread and fill in the value_ptr of the
+thread waiting on it, if any */
 void my_pthread_exit(void *value_ptr) {
 
 	// create unsigned int version of current thread to reduce casts
@@ -214,25 +215,17 @@ void my_pthread_exit(void *value_ptr) {
 
     // thread that the calling thread is joined to
     my_pthread_t joinedThread = tcbList[current_thread_int]->waitingThread;
-    
-    //set current thread status to THREAD_FINISHED
-    tcbList[current_thread_int]->status == THREAD_FINISHED;
-    //set ret value
-    tcbList[current_thread_int]->valuePtr = value_ptr];
 
-    //if thread was not joined, context goes back to manager thread
-    if(tcbList[current_thread_int]->waitingThread == -1)
-        current_thread = MAX_NUM_THREADS + 1;
-    	current_exited = 1;
-        swapcontext(&CurrentContext, &Manager);
-    //if thread was joined, context goes back to joined thread
-    else{
-        current_thread = joinedThread;
-        current_exited = 1;
-        swapcontext(&CurrentContext, &tcbList[(unsigned int)joinedThread]->context);
+    // if the thread has another thread waiting on it (joined this thread),
+    // set its valuePtr member accordingly
+    if(joinedThread != -1) {
+    	joinedThread->valuePtr = value_ptr;
     }
     
-    
+    // swap back to the Manager context
+    current_thread = MAX_NUM_THREADS + 1;
+    current_exited = 1;
+    swapcontext(&CurrentContext, &Manager);
 }
 
 
@@ -246,22 +239,26 @@ int my_pthread_join(my_pthread_t thread, void **value_ptr) {
     if((tcbList[thread_int]) == NULL){
         printf(stderr, "pthread_join(): Target thread %d does
         	not exist!\n", thread_int);
-        return 0; //error
+        return 0;
     }
   
-    //join calling thread to the target thread
+    // set target thread's waitingThread to this thread
     tcbList[thread_int]->waitingThread = current_thread;
-    //switch current thread to target thread
-    current_thread = thread;
-    swapcontext(&Manager, &tcbList[thread_int]->context);
-    
-    //implemented in manpages - if(target thread was cancelled){
-    
-    //when context is switched back...
-    //collect target thread's value once thread is finished running
-    *value_ptr = tcbList[thread_int]->valuePtr;
+
+    // set this thread's status to THREAD_WAITING
+    tcbList[(unsigned int) current_thread]->status = THREAD_WAITING;
+
+    // set the value_ptr to point to this thread's valuePtr, so that
+    // the caller has access to the value. trying to access the
+    // target thread's valuePtr might be undefined because it could
+    // have been terminated by the manager thread before the user
+    // acceses value_ptr.
+    *value_ptr = tcbList[(unsigned int) current_thread]->valuePtr;
+
+    // swap back to the manager
+    swapcontext(&CurrentContext, &Manager);
         
-    return 1; //success
+    return 1; // success
 }
 
 /* initial the mutex lock */

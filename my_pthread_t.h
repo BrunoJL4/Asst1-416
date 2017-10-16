@@ -11,7 +11,6 @@
 #define _GNU_SOURCE
 
 /* include lib header files that you need here: */
-#include <math.h>
 #include <ucontext.h>
 #include <unistd.h>
 #include <signal.h>

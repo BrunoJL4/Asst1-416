@@ -219,7 +219,7 @@ void my_pthread_exit(void *value_ptr) {
 
     // if the thread has another thread waiting on it (joined this thread),
     // set its valuePtr member accordingly
-    if(joinedThread != -1) {
+    if((unsigned int)joinedThread != MAX_NUM_THREADS + 2) {
     	tcbList[joinedThread]->valuePtr = value_ptr;
     }
     
@@ -691,7 +691,7 @@ tcb *createTcb(int status, my_pthread_t tid, stack_t stack, ucontext_t context, 
 	// set priority to 0 by default
 	ret->priority = 0;
 	// waitingThread is -1 by default
-	ret->waitingThread = -1;
+	ret->waitingThread = MAX_NUM_THREADS + 2;
 	// valuePtr is NULL by default
 	ret->valuePtr = NULL;
 	// return a pointer to the instance

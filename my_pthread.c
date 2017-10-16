@@ -122,9 +122,15 @@ struct itimerval timer;
 /* create a new thread */
 int my_pthread_create(my_pthread_t * thread, pthread_attr_t * attr, void *(*function)(void*), void * arg) {
 	printf("entered my_pthread_create()!\n");
+	// flag that is 1 if we're initializing the manager thread,
+	// 0 if not. we'll use this at the end of the function to decide
+	// whether or not to swap contexts back to manager (ONLY swap
+	// contexts if we've just initialized the manager!)
+	int initializingManager = 0;
 	//check that manager thread exists	
 	//init if it does not
 	if (manager_active != 1) {
+		initializingManager = 1;
 		init_manager_thread();
 	}
 	//set information for new child thread's context
@@ -187,10 +193,12 @@ int my_pthread_create(my_pthread_t * thread, pthread_attr_t * attr, void *(*func
 	insertPnodeMLPQ(node, 0);
 	// we've added another thread, so increase this
 	threadsSoFar ++;
-	// swap to the manager
-	current_thread = MAX_NUM_THREADS + 1;	
-	swapcontext(&CurrentContext, &Manager);
-	
+	// if we've just initialized the manager thread, swap to it because
+	// we're in the Main context and need to give the Manager control
+	if(initializingManager == 1) {
+		current_thread = MAX_NUM_THREADS + 1;	
+		swapcontext(&CurrentContext, &Manager);
+	}
 	//returns the new thread id on success
 	return tid; 
 }

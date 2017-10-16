@@ -460,7 +460,7 @@ int maintenanceHelper() {
 	int i;
 	for(i = 0; i < sizeof(MLPQ); i++) {
 		// formula for priority levels v. time slices: 2^(level)
-		int numSlices = round(pow(2, i)); // round() used to turn pow() to int val
+		int numSlices = level_slices(i);
 		// if we don't have enough timeSlices left to distribute to any node in
 		// the current level, break (prevents searching further levels)
 		if(numSlices > timeSlicesLeft) {
@@ -737,4 +737,19 @@ int insertPnodeMLPQ(pnode *input, unsigned int level) {
 	// from the runQueue)
 	input->next = NULL;
 	return 1;
+}
+
+/* Implements getting the number of slices for a given input level.
+Should be 2^(level), so 1 slice at Level 0, 2 at Level 1, 4 at Level 2,
+8 at level 3, 16 at Level 4. */
+int level_slices(int level) {
+	// base case: level 0, give 1 slice
+	if(level == 0) {
+		return 1;
+	}
+	// recursive case: return 2 * recursive func
+	else{
+		return 2*(level_slices(level - 1));
+	}
+
 }

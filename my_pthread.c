@@ -613,7 +613,7 @@ int runQueueHelper() {
 
 
 
-int VTALRMhandler(int signum) {
+void VTALRMhandler(int signum) {
 	// DO NOT PUT A PRINT MESSAGE IN A SIGNAL HANDLER!!!
 
 	// We've interrupted a thread, so change the current_status

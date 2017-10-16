@@ -184,7 +184,7 @@ the work for the manager thread's run queue. Returns 0 on failure,
 int runQueueHelper();
 
 /* This is the signal handler for our timer. */
-int VTALRMhandler(int signum);
+void VTALRMhandler(int signum);
 
 /* Returns a pointer to a new tcb instance. */
 tcb *createTcb(int status, my_pthread_t id, stack_t stack, ucontext_t context, unsigned int timeSlices);
@@ -196,11 +196,5 @@ pnode *createPnode(my_pthread_t tid);
 that it is the last node in that level's list (or first, if no others12
 are present). Returns 0 on failure, 1 on success. */
 int insertPnodeMLPQ(pnode *input, unsigned int level);
-
-/* Receives a TID as input, and checks to see if any other threads
-share the same stack as its context. If the stack is not being
-shared, then deallocate the stack. Returns 0 on failure,
-1 on success. */
-int checkAndDeallocateStack(my_pthread_t tid);
 
 #endif

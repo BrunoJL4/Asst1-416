@@ -131,6 +131,7 @@ int my_pthread_create(my_pthread_t *thread, pthread_attr_t * attr, void *(*funct
 	}
 	//set information for new child thread's context
 	//thread should be ready to run by default
+	printf("Setting attributes for new thread!\n");
 	int status = THREAD_READY;
 	my_pthread_t tid = threadsSoFar;
 	// set aside a stack for the user
@@ -152,13 +153,17 @@ int my_pthread_create(my_pthread_t *thread, pthread_attr_t * attr, void *(*funct
 	//turns out that functions called through pthread always take 0 or 1 arguments
 	//therefore the functions called by the user must always take some type of struct (void *) 
 	//if they wish to pass multiple args
+	printf("Setting args for new thread!\n");
 	if (arg == NULL) {
+		printf("No args for new thread!\n");
 		makecontext(&context, (void*)&function, 0);
 	} else {
+		printf("One or more args for new thread!\n");
 		makecontext(&context, (void*)&function, 1, arg);
 	}
 	//check if we've exceeded max number of threads
 	if (threadsSoFar >= MAX_NUM_THREADS) {
+		printf("Exceeded MAX_NUM_THREADS, checking for recyclable TID's\n");
 		//if so, check recyclableQueue, return -1 if there are no available thread ID's
 		if (recyclableQueue == NULL) {
 			printf("No more available thread ID's!\n"); 
@@ -184,18 +189,41 @@ int my_pthread_create(my_pthread_t *thread, pthread_attr_t * attr, void *(*funct
 		return 0;
 	}
 	// if still using new ID's, just use threadsSoFar as the index and increment it
+	if(MLPQ[0] == NULL) {
+		printf("MLPQ level 0 is NULL!\n");
+	}
+	else{
+		printf("MLPQ level 0 is NOT NULL!\n");
+	}
+	printf("Creating newTcb for new thread #%d\n", tid);
 	tcb *newTcb = createTcb(status, tid, context.uc_stack, context, timeSlices);
 	// add the new tcb to the tcbList at the cell corresponding to its ID
+	if(MLPQ[0] == NULL) {
+		printf("MLPQ level 0 is NULL!\n");
+	}
+	else{
+		printf("MLPQ level 0 is NOT NULL!\n");
+	}
+	printf("modifying tcbList with new thread's tcb!\n");
 	tcbList[threadsSoFar] = newTcb;
-	// insert a pnode containing the ID at Level 0 of MLPQ
+	if(MLPQ[0] == NULL) {
+		printf("MLPQ level 0 is NULL!\n");
+	}
+	else{
+		printf("MLPQ level 0 is NOT NULL!\n");
+	}
+	// create new pnode for new thread
+	printf("Creating pnode for new thread #%d\n", tid);
 	pnode *node = createPnode(tid);
-	// set its TID
+	// insert new node to Level 0 of MLPQ
+	printf("Inserting new thread into MLPQ level 0!\n");
 	insertPnodeMLPQ(node, 0);
 	// we've added another thread, so increase this
 	threadsSoFar ++;
 	// if we've just initialized the manager thread, swap to it because
 	// we're in the Main context and need to give the Manager control
 	if(initializingManager == 1) {
+		printf("Just initialized manager thread, swapping context to it.\n");
 		current_thread = MAX_NUM_THREADS + 1;	
 		swapcontext(&CurrentContext, &Manager);
 	}
@@ -709,15 +737,6 @@ void VTALRMhandler(int signum) {
 int init_manager_thread() {
 	printf("entered init_manager_thread()!\n");
 	testMsg();
-	// Get the current context (this is the main context)
-//	printf("getting main context!\n");
-	getcontext(&Main);
-	// Point its uc_link to Manager (Manager is its "parent thread")
-//	printf("pointing main's uc_link to Manager\n");
-	Main.uc_link = &Manager;
-	// initialize tcb for main
-//	printf("initializing tcb for main\n");
-	tcb *newTcb = createTcb(THREAD_READY, 0, Main.uc_stack, Main, 0);
 	// initialize global variables before adding Main's thread
 	// to the manager
 	// first, initialize array for MLPQ
@@ -740,10 +759,31 @@ int init_manager_thread() {
 	}
 	// initialize current_exited to 0
 	current_exited = 0;
+	// Get the current context (this is the main context)
+	printf("getting main context!\n");
+	getcontext(&Main);
+	// Point its uc_link to Manager (Manager is its "parent thread")
+	printf("pointing main's uc_link to Manager\n");
+	Main.uc_link = &Manager;
+	// initialize tcb for main
+	if(MLPQ[0] == NULL) {
+		printf("MLPQ level 0 is NULL!\n");
+	}
+	else{
+		printf("MLPQ level 0 is NOT NULL!\n");
+	}
+	printf("initializing tcb for main\n");
+	tcb *newTcb = createTcb(THREAD_READY, 0, Main.uc_stack, Main, 0);
+	if(MLPQ[0] == NULL) {
+		printf("MLPQ level 0 is NULL!\n");
+	}
+	else{
+		printf("MLPQ level 0 is NOT NULL!\n");
+	}
 	//now add pnode with Main thread's ID (0) to MLPQ
 	printf("creating mainNode with TID 0\n");
 	pnode *mainNode = createPnode(0);
-	printf("setting first item in MLPQ level 0 to Main\n");
+	printf("inserting main pnode into MLPQ level 0!\n");
 	insertPnodeMLPQ(mainNode, 0);
 	printf("setting tcbList[0] to main's tcb\n");
 	tcbList[0] = newTcb;

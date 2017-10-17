@@ -728,15 +728,15 @@ int init_manager_thread() {
 	// to the manager
 
 	int i;
-//	printf("setting MLPQ queues to NULL by default\n");
+	printf("setting MLPQ queues to NULL by default\n");
 	// initialize MLPQ state
 	for(i = 0; i < NUM_PRIORITY_LEVELS; i++) {
 		MLPQ[i] = NULL;
 	}
 //	printf("initializing tcbList\n");
 	// initialize tcbList state
-//	printf("initializing tcbList pointers to NULL\n");
-	for(i = 0; i < sizeof(tcbList); i++) {
+	printf("initializing tcbList pointers to NULL\n");
+	for(i = 0; i < MAX_NUM_THREADS; i++) {
 		tcbList[i] = NULL;
 	}
 	// initialize current_exited to 0

@@ -25,7 +25,7 @@ The initialization function for building the tcb will initialize
 the MLPQ to an array of an allocated length equal to the number
 of priority levels. 5 levels = 5 cells in the array.
 */
-pnode **MLPQ;
+pnode *MLPQ[MAX_NUM_THREADS];
 
 
 
@@ -751,8 +751,6 @@ int init_manager_thread() {
 	// to the manager
 	// first, initialize array for MLPQ
 //	printf("initializing MLPQ array\n");
-	pnode *temp[NUM_PRIORITY_LEVELS];
-	MLPQ = temp;
 	int i;
 //	printf("setting MLPQ queues to NULL by default\n");
 	for(i = 0; i < NUM_PRIORITY_LEVELS; i++) {
@@ -826,7 +824,7 @@ int init_manager_thread() {
 //	printf("installing VTALRMhandler as signal handler\n");
 	sa.sa_handler = &VTALRMhandler;
 	printf("finished init_manager_thread()\n");
-	printf("MLPQ[0]->tid is: %d\n", MLPQ[0]->tid);
+	printf("MLPQ[0]->tid is this at end of init_manager_thread: %d\n", MLPQ[0]->tid);
 	return 0;
 }
 

@@ -215,6 +215,9 @@ void testMsg();
 /* MLPQ navigation for debugging. */
 void mlpqPrint();
 
+/* runQueue navigation for debugging. */
+void runQueuePrint();
+
 #ifdef USE_MY_PTHREAD
 #define pthread_t my_pthread_t
 #define pthread_mutex_t my_pthread_mutex_t

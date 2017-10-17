@@ -75,7 +75,7 @@ This will be initialized to 0 when the manager thread is initialized. */
 uint threadsSoFar;
 
 /* contexts */
-ucontext_t Manager, Main, CurrentContext;
+ucontext_t Manager;
 
 /* info on current thread */
 
@@ -207,8 +207,11 @@ int my_pthread_create(my_pthread_t *thread, pthread_attr_t * attr, void *(*funct
 	// we're in the Main context and need to give the Manager control
 	if(initializingManager == 1) {
 		printf("Just initialized manager thread, swapping context from thread #%d to Manager.\n", current_thread);
+		my_pthread_t main_thread = current_thread;
 		current_thread = MAX_NUM_THREADS + 1;	
-		swapcontext(&CurrentContext, &Manager);
+		// update Main's context in the tcbList so that it resumes from here
+		// swap back to Manager
+		swapcontext(&(tcbList[main_thread]->context), &Manager);
 	}
 	//returns the new thread id on success
 	*thread = tid;
@@ -224,8 +227,9 @@ int my_pthread_yield() {
 	//manager will yield job in stage 1 of maintenance
 	tcbList[(uint) current_thread]->status = THREAD_YIELDED;
 	printf("swapping contexts from thread #%d to Manager\n", current_thread);
+	my_pthread_t prev_thread = current_thread;
 	current_thread = MAX_NUM_THREADS + 1;
-	swapcontext(&CurrentContext, &Manager);
+	swapcontext(&(tcbList[prev_thread]->context), &Manager);
 	printf("finished my_pthread_yield()!\n");
 	return 1;
 
@@ -250,9 +254,10 @@ void my_pthread_exit(void *value_ptr) {
     
     // swap back to the Manager context
     printf("swapping contexts from thread #%d to Manager\n", current_thread);
+    my_pthread_t exiting_thread = current_thread;
     current_thread = MAX_NUM_THREADS + 1;
     current_exited = 1;
-    swapcontext(&CurrentContext, &Manager);
+    swapcontext(&(tcbList[exiting_thread]->context), &Manager);
     printf("finished my_pthread_exit()!\n");
 }
 
@@ -284,8 +289,9 @@ int my_pthread_join(my_pthread_t thread, void **value_ptr) {
     *value_ptr = tcbList[(uint) current_thread]->valuePtr;
     printf("swapping contexts from thread #%d to Manager\n", current_thread);
     // swap back to the manager
+    my_pthread_t joining_thread = current_thread;
     current_thread = MAX_NUM_THREADS + 1;
-    swapcontext(&CurrentContext, &Manager);
+    swapcontext(&(tcbList[joining_thread]->context), &Manager);
      printf("finished my_pthread_join()!\n");
     return 0; // success
 }
@@ -766,7 +772,8 @@ int init_manager_thread() {
 //	testMsg();
 	// initialize global variables before adding Main's thread
 	// to the manager
-
+	// we must be inside of Main, so set current_thread to 0.
+	current_thread = 0;
 	int i;
 	printf("setting MLPQ queues to NULL by default\n");
 	// initialize MLPQ state
@@ -781,14 +788,14 @@ int init_manager_thread() {
 	}
 	// initialize current_exited to 0
 	current_exited = 0;
-	// Get the current context (this is the main context)
-//	printf("getting main context!\n");
+	// Initializing current (Main) context
+	printf("getting main context!\n");
+	ucontext_t Main;
 	getcontext(&Main);
-	// Point its uc_link to Manager (Manager is its "parent thread")
-//	printf("pointing main's uc_link to Manager\n");
-	Main.uc_link = &Manager;
+	// Don't point its uc_link at Manager. Manager will do that
+	// for it.
 	//now add pnode with Main thread's ID (0) to MLPQ
-//	printf("creating mainNode with TID 0\n");
+	printf("creating mainNode with TID 0\n");
 	pnode *mainNode = createPnode(0);
 //	printf("inserting main pnode into MLPQ level 0!\n");
 	insertPnodeMLPQ(mainNode, 0);
@@ -802,23 +809,23 @@ int init_manager_thread() {
 	// set manager_active to 1
 	manager_active = 1;
 	// initialize manager thread's context
-//	printf("getting Manager's context\n");
+	printf("getting Manager's context\n");
 	getcontext(&Manager);
 	// this is the stack that will be used by the manager context
 	char manager_stack[MEM];
 	// point the manager's stack pointer to the manager_stack we just set
-//	printf("setting Manager's stack attributes\n");
+	printf("setting Manager's stack attributes\n");
 	Manager.uc_stack.ss_sp = manager_stack;
 	// set the manager's stack size to MEM
 	Manager.uc_stack.ss_size = sizeof(manager_stack);
 	// no other context will resume after the manager leaves
-//	printf("setting Manager's uc_link\n");
+	printf("setting Manager's uc_link\n");
 	Manager.uc_link = NULL;
 	// attach manager context to my_pthread_manager()
-//	printf("Making context for manager\n");
+	printf("Making context for manager\n");
 	makecontext(&Manager, (void*)&my_pthread_manager, 0);
 	// allocate memory for signal alarm struct
-//	printf("setting memory for signal alarm struct\n");
+	printf("setting memory for signal alarm struct\n");
 	memset(&sa, 0, sizeof(sa));
 	// install VTALRMhandler as the signal handler for SIGVTALRM
 //	printf("installing VTALRMhandler as signal handler\n");

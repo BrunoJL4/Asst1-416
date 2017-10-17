@@ -73,12 +73,12 @@ typedef struct threadControlBlock {
 	/* The number of time slices allocated to the thread.
 	This is zero by default, and is allocated during the
 	maintenance cycle.*/
-	unsigned int timeSlices;
+	uint timeSlices;
 
 	/* The thread's current priority. 0 by default, but priority
 	level is decreased (the priority going from 0 to 1, 1 to 2,
 	and so on) as the thread is interrupted/preempted more often*/
-	unsigned int priority;
+	uint priority;
 
 	/* The ID of the thread waiting on this thread, if any. -1 by
 	default, or if no threads are waiting on this thread. */
@@ -186,7 +186,7 @@ int runQueueHelper();
 void VTALRMhandler(int signum);
 
 /* Returns a pointer to a new tcb instance. */
-tcb *createTcb(int status, my_pthread_t id, stack_t stack, ucontext_t context, unsigned int timeSlices);
+tcb *createTcb(int status, my_pthread_t id, stack_t stack, ucontext_t context, uint timeSlices);
 
 /* Returns a pointer to a new pnode instance. */
 pnode *createPnode(my_pthread_t tid);
@@ -194,7 +194,7 @@ pnode *createPnode(my_pthread_t tid);
 /* Inserts a given pnode into a given level of the MLPQ, such
 that it is the last node in that level's list (or first, if no others12
 are present). Returns 0 on failure, 1 on success. */
-int insertPnodeMLPQ(pnode *input, unsigned int level);
+int insertPnodeMLPQ(pnode *input, uint level);
 
 #ifdef USE_MY_PTHREAD
 #define pthread_t my_pthread_t

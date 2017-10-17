@@ -72,7 +72,7 @@ pnode *recyclableQueue;
 
 /* Number of threads created so far.
 This will be initialized to 0 when the manager thread is initialized. */
-unsigned int threadsSoFar;
+uint threadsSoFar;
 
 /* contexts */
 ucontext_t Manager, Main, CurrentContext;
@@ -83,7 +83,7 @@ ucontext_t Manager, Main, CurrentContext;
 //pthread_exit(). 0 if false, 1 if true. used in manager thread
 //to determine whether one calls pthread_exit()'s functionality
 //on a thread that didn't explicitly call it.
-unsigned int current_exited;
+uint current_exited;
 
 /*ID of the currently-running thread. MAX_NUM_THREADS+1 if manager,
 otherwise then some child thread. */
@@ -95,7 +95,7 @@ int current_status;
 
 /* Boolean 1 if manager thread is active, otherwise 0 as globals
 are initialized to by default*/
-unsigned int manager_active;
+uint manager_active;
 
 /* Status of currently-running thread. */
 enum threadStatus currentStatus;
@@ -136,7 +136,7 @@ int my_pthread_create(my_pthread_t * thread, pthread_attr_t * attr, void *(*func
 	char stack[MEM];
 	// set the stack pointer for the user's context
 	//time slices is 0 by default
-	unsigned int timeSlices = 0;
+	uint timeSlices = 0;
 	ucontext_t context;
 	//initialize context, fill it in with current
 	//context's information
@@ -173,7 +173,7 @@ int my_pthread_create(my_pthread_t * thread, pthread_attr_t * attr, void *(*func
 		//make a new TCB from the gathered information
 		tcb *newTcb = createTcb(status, tid, context.uc_stack, context, timeSlices);
 		//change the tcb instance in tcbList[id] to this tcb
-		tcbList[(unsigned int) tid] = newTcb;
+		tcbList[(uint) tid] = newTcb;
 		// insert a pnode containing the ID at Level 0 of MLPQ
 		pnode *node = createPnode(tid);
 		insertPnodeMLPQ(node, 0);
@@ -203,7 +203,7 @@ int my_pthread_yield() {
 	printf("entered my_pthread_yield()!\n");
 	//set thread to yield, set current_thread to manager, swap contexts.
 	//manager will yield job in stage 1 of maintenance
-	tcbList[(unsigned int) current_thread]->status = THREAD_YIELDED;
+	tcbList[(uint) current_thread]->status = THREAD_YIELDED;
 	current_thread = MAX_NUM_THREADS + 1;
 	swapcontext(&CurrentContext, &Manager);
 	return 1;
@@ -214,15 +214,15 @@ int my_pthread_yield() {
 thread waiting on it, if any */
 void my_pthread_exit(void *value_ptr) {
 	printf("entered my_pthread_exit()!\n");
-	// create unsigned int version of current thread to reduce casts
-    unsigned int current_thread_int = (unsigned int) current_thread;
+	// create uint version of current thread to reduce casts
+    uint current_thread_int = (uint) current_thread;
 
     // thread that the calling thread is joined to
     my_pthread_t joinedThread = tcbList[current_thread_int]->waitingThread;
 
     // if the thread has another thread waiting on it (joined this thread),
     // set its valuePtr member accordingly
-    if((unsigned int)joinedThread != MAX_NUM_THREADS + 2) {
+    if((uint)joinedThread != MAX_NUM_THREADS + 2) {
     	tcbList[joinedThread]->valuePtr = value_ptr;
     }
     
@@ -236,8 +236,8 @@ void my_pthread_exit(void *value_ptr) {
 /* wait for thread termination */
 int my_pthread_join(my_pthread_t thread, void **value_ptr) {
 	printf("entered my_pthread_join()!\n");
-     // create unsigned int version of current thread to reduce casts
-    unsigned int thread_int = (unsigned int) thread;
+     // create uint version of current thread to reduce casts
+    uint thread_int = (uint) thread;
 
     //what if thread doesn't exist?
     if((tcbList[thread_int]) == NULL){
@@ -249,14 +249,14 @@ int my_pthread_join(my_pthread_t thread, void **value_ptr) {
     tcbList[thread_int]->waitingThread = current_thread;
 
     // set this thread's status to THREAD_WAITING
-    tcbList[(unsigned int) current_thread]->status = THREAD_WAITING;
+    tcbList[(uint) current_thread]->status = THREAD_WAITING;
 
     // set the value_ptr to point to this thread's valuePtr, so that
     // the caller has access to the value. trying to access the
     // target thread's valuePtr might be undefined because it could
     // have been terminated by the manager thread before the user
     // acceses value_ptr.
-    *value_ptr = tcbList[(unsigned int) current_thread]->valuePtr;
+    *value_ptr = tcbList[(uint) current_thread]->valuePtr;
 
     // swap back to the manager
     swapcontext(&CurrentContext, &Manager);
@@ -307,7 +307,7 @@ int my_pthread_mutex_lock(my_pthread_mutex_t *mutex) {
 			ptr->next = new;
 		}
 		//set thread status to BLOCKED and change context
-		tcbList[(unsigned int) current_thread]->status = THREAD_BLOCKED;
+		tcbList[(uint) current_thread]->status = THREAD_BLOCKED;
 		//let the manager continue in the run queue
 		current_thread = MAX_NUM_THREADS + 1;
 		setcontext(&Manager);
@@ -344,7 +344,7 @@ int my_pthread_mutex_unlock(my_pthread_mutex_t *mutex) {
 	pnode *ptr = mutex->waitQueue;
 	mutex->waitQueue = mutex->waitQueue->next;
 	//make this thread ready so it can now acquire this lock
-	tcbList[(unsigned int) ptr->tid]->status = THREAD_READY;
+	tcbList[(uint) ptr->tid]->status = THREAD_READY;
 	free(ptr);
 	
 	return 1;
@@ -402,7 +402,7 @@ int maintenanceHelper() {
 	pnode *currPnode = runQueue;
 	while(currPnode != NULL) {
 		my_pthread_t currId = currPnode->tid;
-		tcb *currTcb = tcbList[(unsigned int)currId];
+		tcb *currTcb = tcbList[(uint)currId];
 		// if a runQueue thread's status is THREAD_DONE:
 		
         // Took a look at this, made minor syntax changes, long as checkAndDeallocateStack
@@ -411,7 +411,7 @@ int maintenanceHelper() {
 			// deallocate the thread's tcb through tcbList
 			free(currTcb);
 			// set tcbList[tid] to NULL
-			tcbList[(unsigned int)currId] = NULL;
+			tcbList[(uint)currId] = NULL;
 			// then deallocate its pnode in the run queue while
 			// moving currPnode to the next node.
 			pnode *temp = currPnode;
@@ -479,7 +479,7 @@ int maintenanceHelper() {
 				break;
 			}
 			my_pthread_t currId = currPnode->tid;
-			tcb *currTcb = tcbList[(unsigned int) currId];
+			tcb *currTcb = tcbList[(uint) currId];
 			// if the current pnode's thread is ready to run:
 			if(currTcb->status == THREAD_READY) {
 				// make a temp ptr to the current pnode.
@@ -569,7 +569,7 @@ int runQueueHelper() {
 	pnode *prev = currPnode;
 	while(currPnode != NULL) {
 		my_pthread_t currId = currPnode->tid;
-		tcb *currTcb = tcbList[(unsigned int) currId];
+		tcb *currTcb = tcbList[(uint) currId];
 		// grab number of time slices allowed for the thread
 		int slicesLeft = currTcb->timeSlices;
 		// change status of current thread to running
@@ -592,7 +592,7 @@ int runQueueHelper() {
 			timer.it_value.tv_sec = 0;
 			timer.it_value.tv_usec = 0;
             if(current_exited == 0){ //implicit exit
-                current_thread = tcbList[(unsigned int) currId]->tid;
+                current_thread = tcbList[(uint) currId]->tid;
                 my_pthread_exit(NULL);
             }
 			currTcb->status = THREAD_DONE;
@@ -682,7 +682,7 @@ int init_manager_thread() {
 }
 
 
-tcb *createTcb(int status, my_pthread_t tid, stack_t stack, ucontext_t context, unsigned int timeSlizes) {
+tcb *createTcb(int status, my_pthread_t tid, stack_t stack, ucontext_t context, uint timeSlizes) {
 	printf("entered createTcb()!\n");
 	// allocate memory for tcb instance
 	tcb *ret = (tcb*) malloc(sizeof(tcb));
@@ -710,7 +710,7 @@ pnode *createPnode(my_pthread_t tid) {
 	return ret;
 }
 
-int insertPnodeMLPQ(pnode *input, unsigned int level) {
+int insertPnodeMLPQ(pnode *input, uint level) {
 	printf("entered insertPnodeMLPQ()!\n");
 	if(MLPQ == NULL) {
 		return 0;

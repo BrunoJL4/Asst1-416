@@ -531,17 +531,24 @@ int maintenanceHelper() {
 				printf("current thread's status is THREAD_READY\n");
 				// make a temp ptr to the current pnode.
 				pnode *tempCurr = currPnode;
+				// delink it for one of two cases:
 				// first case: pnode is first node in queue
 				if(currPnode == MLPQ[i]) {
 					printf("pnode is first node in queue\n");
 					// set MLPQ[i]'s pointer to the next node
 					MLPQ[i] = MLPQ[i]->next;
+					// navigate to next part so that prev and currPnode
+					// both point to the beginning of updated MLPQ[i]
+					prev = MLPQ[i];
+					currPnode = MLPQ[i];
 				}
-				// second case: pnode isn't first node in level (e.g. is
+				// second case: currPnode isn't first node in level (e.g. is
 				// in the middle or is the last node)
 				else{
 					printf("pnode isn't first node\n");
+					// delink current node from MLPQ
 					prev->next = currPnode->next;
+					currPnode = currPnode->next;
 				}
 				// add the tempCurr ptr to the end of the runQueue.
 				pnode *temp = runQueue;
@@ -554,13 +561,12 @@ int maintenanceHelper() {
 				}
 				//otherwise, add to the end of queue
 				else{ 
-					printf("runQueue populated, adding node #%d to end\n");
+					printf("runQueue populated, adding node #%d to end\n", currId);
 					while(temp->next != NULL) {
 						temp = temp->next;
 					}
 					temp->next = tempCurr;
 				}
-				
 				// point its next member to NULL.
 //				printf("setting tempCurr->next\n");
 				tempCurr->next = NULL;
@@ -577,9 +583,13 @@ int maintenanceHelper() {
 				printf("setting currTcb->status to THREAD_READY\n");
 				currTcb->status = THREAD_READY;
 			}
+			// if the current thread isn't ready, navigate as normal as we
+			// haven't delinked anything
+			else{
+				prev = currPnode;
+				currPnode = currPnode->next;
+			}
 			printf("continuing in MLPQ level %d navigation\n", i);
-			prev = currPnode;
-			currPnode = currPnode->next;
 		}
 	}
 

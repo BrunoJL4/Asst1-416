@@ -209,6 +209,9 @@ that it is the last node in that level's list (or first, if no others12
 are present). Returns 0 on failure, 1 on success. */
 int insertPnodeMLPQ(pnode *input, uint level);
 
+/* Message used for debugging. */
+void testMsg();
+
 #ifdef USE_MY_PTHREAD
 #define pthread_t my_pthread_t
 #define pthread_mutex_t my_pthread_mutex_t

@@ -115,8 +115,9 @@ struct itimerval timer;
 /* my_pthread and mutex function implementations */
 
 /* create a new thread */
-int my_pthread_create(my_pthread_t * thread, pthread_attr_t * attr, void *(*function)(void*), void * arg) {
+int my_pthread_create(my_pthread_t *thread, pthread_attr_t * attr, void *(*function)(void*), void * arg) {
 	printf("entered my_pthread_create()!\n");
+	testMsg();
 	// flag that is 1 if we're initializing the manager thread,
 	// 0 if not. we'll use this at the end of the function to decide
 	// whether or not to swap contexts back to manager (ONLY swap
@@ -177,7 +178,8 @@ int my_pthread_create(my_pthread_t * thread, pthread_attr_t * attr, void *(*func
 		// insert a pnode containing the ID at Level 0 of MLPQ
 		pnode *node = createPnode(tid);
 		insertPnodeMLPQ(node, 0);
-		return tid;
+		*thread = tid;
+		return 0;
 	}
 	// if still using new ID's, just use threadsSoFar as the index and increment it
 	tcb *newTcb = createTcb(status, tid, context.uc_stack, context, timeSlices);
@@ -195,12 +197,14 @@ int my_pthread_create(my_pthread_t * thread, pthread_attr_t * attr, void *(*func
 		swapcontext(&CurrentContext, &Manager);
 	}
 	//returns the new thread id on success
-	return tid; 
+	*thread = tid;
+	return 0; 
 }
 
 /* give CPU pocession to other user level threads voluntarily */
 int my_pthread_yield() {
 	printf("entered my_pthread_yield()!\n");
+	testMsg();
 	//set thread to yield, set current_thread to manager, swap contexts.
 	//manager will yield job in stage 1 of maintenance
 	tcbList[(uint) current_thread]->status = THREAD_YIELDED;
@@ -214,6 +218,7 @@ int my_pthread_yield() {
 thread waiting on it, if any */
 void my_pthread_exit(void *value_ptr) {
 	printf("entered my_pthread_exit()!\n");
+	testMsg();
 	// create uint version of current thread to reduce casts
     uint current_thread_int = (uint) current_thread;
 
@@ -236,6 +241,7 @@ void my_pthread_exit(void *value_ptr) {
 /* wait for thread termination */
 int my_pthread_join(my_pthread_t thread, void **value_ptr) {
 	printf("entered my_pthread_join()!\n");
+	testMsg();
      // create uint version of current thread to reduce casts
     uint thread_int = (uint) thread;
 
@@ -267,6 +273,7 @@ int my_pthread_join(my_pthread_t thread, void **value_ptr) {
 /* initial the mutex lock */
 int my_pthread_mutex_init(my_pthread_mutex_t *mutex, const pthread_mutexattr_t *attr) {
 	printf("entered my_mutex_init()!\n");
+	testMsg();
 	//Check if mutex is initialized
 	//if so, return
 	if (&mutex != NULL) {
@@ -285,6 +292,7 @@ int my_pthread_mutex_init(my_pthread_mutex_t *mutex, const pthread_mutexattr_t *
 /* aquire the mutex lock */
 int my_pthread_mutex_lock(my_pthread_mutex_t *mutex) {
 	printf("entered my_pthread_mutex_lock()!\n");
+	testMsg();
 	//Call my_pthread_mutex_init
 	//calling with NULL attr argument sets the property to default
 	my_pthread_mutex_init(mutex, NULL);
@@ -324,6 +332,7 @@ int my_pthread_mutex_lock(my_pthread_mutex_t *mutex) {
 /* release the mutex lock */
 int my_pthread_mutex_unlock(my_pthread_mutex_t *mutex) {
 	printf("entered my_pthread_mutex_unlock()!\n");
+	testMsg();
 	//If mutex is NOT initialized
 	//user did something bad
 	if (&mutex == NULL) {
@@ -353,6 +362,7 @@ int my_pthread_mutex_unlock(my_pthread_mutex_t *mutex) {
 /* destroy the mutex */
 int my_pthread_mutex_destroy(my_pthread_mutex_t *mutex) {
 	printf("entered my_pthread_mutex_destroy()!\n");
+	testMsg();
 	//If mutex is NOT initialized
 	if (&mutex == NULL) {
 		return 0;
@@ -373,6 +383,7 @@ int my_pthread_mutex_destroy(my_pthread_mutex_t *mutex) {
 Returns 0 on failure, 1 on success. */
 int my_pthread_manager() {
 	printf("entered my_pthread_manager()!\n");
+	testMsg();
 	// check if manager is still considered "active"
 	while(manager_active == 1) {
 		// perform maintenance cycle
@@ -397,6 +408,7 @@ the manager thread's maintenance cycle. Returns 0 on failure,
 1 on success.*/
 int maintenanceHelper() {
 	printf("entered maintenanceHelper()!\n");
+	testMsg();
 	// first part: clearing the run queue, and performing
 	// housekeeping depending on the thread's status
 	pnode *currPnode = runQueue;
@@ -580,6 +592,7 @@ the work for the manager thread's run queue. Returns 0 on failure,
 1 on success. */
 int runQueueHelper() {
 	printf("entered runQueueHelper()!\n");
+	testMsg();
 	// first, check and see if the manager thread is still active after
 	// the last round of maintenance
 	if(manager_active == 0) {
@@ -665,6 +678,7 @@ void VTALRMhandler(int signum) {
 
 int init_manager_thread() {
 	printf("entered init_manager_thread()!\n");
+	testMsg();
 	// Get the current context (this is the main context)
 	getcontext(&Main);
 	// Point its uc_link to Manager (Manager is its "parent thread")
@@ -719,6 +733,7 @@ int init_manager_thread() {
 
 tcb *createTcb(int status, my_pthread_t tid, stack_t stack, ucontext_t context, uint timeSlizes) {
 	printf("entered createTcb()!\n");
+	testMsg();
 	// allocate memory for tcb instance
 	tcb *ret = (tcb*) malloc(sizeof(tcb));
 	// set members to inputs
@@ -741,6 +756,7 @@ tcb *createTcb(int status, my_pthread_t tid, stack_t stack, ucontext_t context, 
 
 pnode *createPnode(my_pthread_t tid) {
 	printf("entered createPnode()!\n");
+	testMsg();
 	pnode *ret = (pnode*) malloc(sizeof(pnode));
 	ret->tid = tid;
 	ret->next = NULL;
@@ -749,6 +765,7 @@ pnode *createPnode(my_pthread_t tid) {
 
 int insertPnodeMLPQ(pnode *input, uint level) {
 	printf("entered insertPnodeMLPQ()!\n");
+	testMsg();
 	if(MLPQ == NULL) {
 		return 0;
 	}
@@ -783,6 +800,7 @@ int insertPnodeMLPQ(pnode *input, uint level) {
 Should be 2^(level), so 1 slice at Level 0, 2 at Level 1, 4 at Level 2,
 8 at level 3, 16 at Level 4. */
 int level_slices(int level) {
+	printf("entered level_slices!\n");
 	// base case: level 0, give 1 slice
 	if(level == 0) {
 		return 1;
@@ -792,4 +810,11 @@ int level_slices(int level) {
 		return 2*(level_slices(level - 1));
 	}
 
+}
+
+/* Print message for testing. Used to tell current running thread,
+manager_active. */
+void testMsg() {
+	printf("Currently in thread %d\n", current_thread);
+	printf("manager_active: %d\n", manager_active);
 }

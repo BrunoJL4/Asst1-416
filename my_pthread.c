@@ -90,7 +90,7 @@ otherwise then some child thread. */
 my_pthread_t current_thread;
 
 /* The status of the currently-running thread (under the manager).
-Will either be THREAD_RUNNING or THREAD_INTERRUPTED. */
+Will either be THREAD_RUNNING, THREAD_INTERRUPTED, or THREAD_WAITING*/
 int current_status;
 
 /* Boolean 1 if manager thread is active, otherwise 0 as globals
@@ -145,8 +145,6 @@ int my_pthread_create(my_pthread_t *thread, pthread_attr_t * attr, void *(*funct
 	//context's information
 	getcontext(&context);
 	// any child context should link back to Manager
-	// upon finishing execution/being interrupted or preempted
-	context.uc_link = &Manager;
 	// set new context's stack to our allocated stack
 	context.uc_stack.ss_sp = stack;
 	// set new context's stack size to size of allocated stack
@@ -158,7 +156,8 @@ int my_pthread_create(my_pthread_t *thread, pthread_attr_t * attr, void *(*funct
 	if (arg == NULL) {
 		printf("No args for new thread!\n");
 		makecontext(&context, (void*)&function, 0);
-	} else {
+	} 
+	else {
 		printf("One or more args for new thread!\n");
 		makecontext(&context, (void*)&function, 1, arg);
 	}
@@ -194,7 +193,7 @@ int my_pthread_create(my_pthread_t *thread, pthread_attr_t * attr, void *(*funct
 	tcb *newTcb = createTcb(status, tid, context.uc_stack, context, timeSlices);
 	// add the new tcb to the tcbList at the cell corresponding to its ID
 	printf("modifying tcbList with new thread's tcb!\n");
-	tcbList[threadsSoFar] = newTcb;
+	tcbList[tid] = newTcb;
 	// create new pnode for new thread
 //	printf("Creating pnode for new thread #%d\n", tid);
 	pnode *node = createPnode(tid);
@@ -265,28 +264,36 @@ void my_pthread_exit(void *value_ptr) {
 /* wait for thread termination */
 int my_pthread_join(my_pthread_t thread, void **value_ptr) {
 	printf("entered my_pthread_join()!\n");
-//	testMsg();
+	testMsg();
      // create uint version of current thread to reduce casts
     uint thread_int = (uint) thread;
 
     //what if thread doesn't exist?
+    printf("checking if thread exists\n");
     if((tcbList[thread_int]) == NULL){
         fprintf(stderr, "pthread_join(): Target thread %d does not exist!\n", thread_int);
         return -1;
     }
   
     // set target thread's waitingThread to this thread
+    printf("setting target thread's waitingThread to this thread\n");
     tcbList[thread_int]->waitingThread = current_thread;
 
     // set this thread's status to THREAD_WAITING
+    printf("setting current thread's status to THREAD_WAITING\n");
     tcbList[(uint) current_thread]->status = THREAD_WAITING;
+    // set global flag for current status to THREAD_WAITING so the
+    // runQueueHelper() knows.
+    current_status = THREAD_WAITING;
 
     // set the value_ptr to point to this thread's valuePtr, so that
     // the caller has access to the value. trying to access the
     // target thread's valuePtr might be undefined because it could
     // have been terminated by the manager thread before the user
     // acceses value_ptr.
-    *value_ptr = tcbList[(uint) current_thread]->valuePtr;
+    printf("Setting valuePtr\n");
+//    printf("status of current thread in tcbList: %d\n", tcbList[current_thread]->status);
+    value_ptr = &(tcbList[(uint) current_thread]->valuePtr);
     printf("swapping contexts from thread #%d to Manager\n", current_thread);
     // swap back to the manager
     my_pthread_t joining_thread = current_thread;
@@ -719,6 +726,8 @@ int runQueueHelper() {
 		current_exited = 0;
 		current_thread = currId;
 		printf("Swapping contexts from Manager to thread #%d\n", currId);
+		// update child thread's uc_link to Manager
+		tcbList[currId]->context.uc_link = &Manager;
 		swapcontext(&Manager, &(currTcb->context));
 		// if this context resumed and current_status is still THREAD_RUNNING,
 		// then thread ran to completion before being interrupted.
@@ -733,12 +742,17 @@ int runQueueHelper() {
             }
 			currTcb->status = THREAD_DONE;
 		}
-		// if this context  resumed and current_status is THREAD_INTERRUPTED,
+		// if this context resumed and current_status is THREAD_INTERRUPTED,
 		// then the signal handler interrupted the child thread, which
 		// didn't get to run to completion.
 		else if(current_status == THREAD_INTERRUPTED){
 			// Do nothing here, since thread's status was already set
 			printf("Thread #%d was interrupted!\n", currId);
+		}
+		// if this context resumed and current status is THREAD_WAITING,
+		else if(current_status == THREAD_WAITING) {
+			// Do nothing here, since thread's status was already set
+			printf("Thread #%d is waiting1\n", currId);
 		}
 		// this branch shouldn't occur
 		else {
@@ -907,7 +921,6 @@ int insertPnodeMLPQ(pnode *input, uint level) {
 		printf("Inserting input node in middle/at end!\n");
 		temp = temp->next;
 	}
-	printf("Delinking node from runQueue and putting at end of MLPQ.\n");
 	// set temp->next to input
 	temp->next = input;
 	// input->next is set to NULL (in case we inserted a thread

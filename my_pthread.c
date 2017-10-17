@@ -413,11 +413,14 @@ int maintenanceHelper() {
 	// first part: clearing the run queue, and performing
 	// housekeeping depending on the thread's status
 	pnode *currPnode = runQueue;
+	printf("going into first part loop\n");
 	while(currPnode != NULL) {
+		printf("setting variables for current node in runQueue\n");
 		my_pthread_t currId = currPnode->tid;
 		tcb *currTcb = tcbList[(uint)currId];
 		// if a runQueue thread's status is THREAD_DONE:
 		if(currTcb->status == THREAD_DONE) {
+			printf("runQueue thread's status is THREAD_DONE\n");
 			// deallocate the thread's tcb through tcbList
 			free(currTcb);
 			// set tcbList[tid] to NULL
@@ -436,6 +439,7 @@ int maintenanceHelper() {
 		}
 		// if a runQueue thread's status is THREAD_INTERRUPTED:
 		else if(currTcb->status == THREAD_INTERRUPTED) {
+			printf("runQueue thread's status is THREAD_INTERRUPTED\n");
 			// we insert the thread back into the MLPQ but at one lower
 			// priority level, also changing its priority member.
 			// then change its status to READY.
@@ -447,6 +451,7 @@ int maintenanceHelper() {
 		}
 		// if a runQueue thread is waiting or yielding
 		else if(currTcb->status == THREAD_WAITING || currTcb->status == THREAD_YIELDED) {
+			printf("runQueue thread's status is WAITING or YIELDING\n");
 			// put the thread into the MLPQ at the same priority level,
 			// so that it can resume in subsequent runs when it's
 			// set to READY as the thread it's waiting on finishes
@@ -472,6 +477,7 @@ int maintenanceHelper() {
 	int i;
 	printf("going into part 2 loop\n");
 	for(i = 0; i < sizeof(MLPQ); i++) {
+		printf("current level in part 2 loop: %d\n", i);
 		// formula for priority levels v. time slices: 2^(level)
 		int numSlices = level_slices(i);
 		// if we don't have enough timeSlices left to distribute to any node in
@@ -698,27 +704,27 @@ int init_manager_thread() {
 	printf("entered init_manager_thread()!\n");
 	testMsg();
 	// Get the current context (this is the main context)
-	printf("getting main context!\n");
+//	printf("getting main context!\n");
 	getcontext(&Main);
 	// Point its uc_link to Manager (Manager is its "parent thread")
-	printf("pointing main's uc_link to Manager\n");
+//	printf("pointing main's uc_link to Manager\n");
 	Main.uc_link = &Manager;
 	// initialize tcb for main
-	printf("initializing tcb for main\n");
+//	printf("initializing tcb for main\n");
 	tcb *newTcb = createTcb(THREAD_READY, 0, Main.uc_stack, Main, 0);
 	// initialize global variables before adding Main's thread
 	// to the manager
 	// first, initialize array for MLPQ
-	printf("initializing MLPQ array\n");
+//	printf("initializing MLPQ array\n");
 	pnode *temp[NUM_PRIORITY_LEVELS];
 	MLPQ = temp;
 	int i;
-	printf("setting MLPQ queues to NULL by default\n");
+//	printf("setting MLPQ queues to NULL by default\n");
 	for(i = 0; i < NUM_PRIORITY_LEVELS; i++) {
 		MLPQ[i] = NULL;
 	}
 	// next, initialize tcbList
-	printf("initializing tcbList\n");
+//	printf("initializing tcbList\n");
 	tcb *newTcbList[MAX_NUM_THREADS];
 	tcbList = newTcbList;
 	// initialize current_exited to 0
@@ -726,42 +732,42 @@ int init_manager_thread() {
 	// initialize all pointers in tcbList to NULL by default.
 	// convention will be that any non-active tcbList cell is
 	// set to NULL for ease of linear search functions.
-	printf("initializing tcbList pointers to NULL\n");
+//	printf("initializing tcbList pointers to NULL\n");
 	for(i = 0; i < sizeof(tcbList); i++) {
 		tcbList[i] = NULL;
 	}
 	//now add pnode with Main thread's ID (0) to MLPQ
-	printf("creating mainNode with TID 0\n");
+//	printf("creating mainNode with TID 0\n");
 	pnode *mainNode = createPnode(0);
-	printf("setting first item in MLPQ level 0 to Main\n");
-	MLPQ[0] = mainNode;
-	printf("setting tcbList[0] to main's tcb\n");
+//	printf("setting first item in MLPQ level 0 to Main\n");
+	insertPnodeMLPQ(mainNode, 0);
+//	printf("setting tcbList[0] to main's tcb\n");
 	tcbList[0] = newTcb;
 	threadsSoFar = 1;
 	runQueue = NULL;
 	// set manager_active to 1
 	manager_active = 1;
 	// initialize manager thread's context
-	printf("getting Manager's context\n");
+//	printf("getting Manager's context\n");
 	getcontext(&Manager);
 	// this is the stack that will be used by the manager context
 	char manager_stack[MEM];
 	// point the manager's stack pointer to the manager_stack we just set
-	printf("setting Manager's stack attributes\n");
+//	printf("setting Manager's stack attributes\n");
 	Manager.uc_stack.ss_sp = manager_stack;
 	// set the manager's stack size to MEM
 	Manager.uc_stack.ss_size = sizeof(manager_stack);
 	// no other context will resume after the manager leaves
-	printf("setting Manager's uc_link\n");
+//	printf("setting Manager's uc_link\n");
 	Manager.uc_link = NULL;
 	// attach manager context to my_pthread_manager()
-	printf("Making context for manager\n");
+//	printf("Making context for manager\n");
 	makecontext(&Manager, (void*)&my_pthread_manager, 0);
 	// allocate memory for signal alarm struct
-	printf("setting memory for signal alarm struct\n");
+//	printf("setting memory for signal alarm struct\n");
 	memset(&sa, 0, sizeof(sa));
 	// install VTALRMhandler as the signal handler for SIGVTALRM
-	printf("installing VTALRMhandler as signal handler\n");
+//	printf("installing VTALRMhandler as signal handler\n");
 	sa.sa_handler = &VTALRMhandler;
 	
 	return 1;

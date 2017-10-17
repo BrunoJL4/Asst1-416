@@ -12,11 +12,6 @@
 #define MAX_NUM_THREADS 64 //max number of threads allowed at once
 #define QUANTA_LENGTH 25
 
-/* Additional ucontext funtion info to help out */
-//getcontext(context) - initializes a blank context or explicitly gets the context specified
-//setcontext(context) - explicitly sets the current context to context specified
-//makecontext(context, fn, #args) - assigns specified context to a function
-//swapcontext(context1, context2) - assigns current context to first arg, then runs second arg context
 
 /* Define global variables here. */
 

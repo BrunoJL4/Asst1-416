@@ -10,6 +10,9 @@
 
 #define _GNU_SOURCE
 
+/* To use real pthread Library in Benchmark, you have to comment the USE_MY_PTHREAD macro */
+#define USE_MY_PTHREAD 1
+
 /* include lib header files that you need here: */
 #include <ucontext.h>
 #include <unistd.h>
@@ -129,9 +132,6 @@ typedef struct my_pthread_mutex_t {
 } my_pthread_mutex_t;
 
 
-// Feel free to add your own auxiliary data structures
-
-
 /* Function Declarations: */
 
 /* create a new thread */
@@ -195,5 +195,17 @@ pnode *createPnode(my_pthread_t tid);
 that it is the last node in that level's list (or first, if no others12
 are present). Returns 0 on failure, 1 on success. */
 int insertPnodeMLPQ(pnode *input, unsigned int level);
+
+#ifdef USE_MY_PTHREAD
+#define pthread_t my_pthread_t
+#define pthread_mutex_t my_pthread_mutex_t
+#define pthread_create my_pthread_create
+#define pthread_exit my_pthread_exit
+#define pthread_join my_pthread_join
+#define pthread_mutex_init my_pthread_mutex_init
+#define pthread_mutex_lock my_pthread_mutex_lock
+#define pthread_mutex_unlock my_pthread_mutex_unlock
+#define pthread_mutex_destroy my_pthread_mutex_destroy
+#endif
 
 #endif

@@ -714,7 +714,7 @@ int init_manager_thread() {
 	MLPQ = temp;
 	int i;
 	printf("setting MLPQ queues to NULL by default\n");
-	for(i = 0; i < MAX_NUM_THREADS; i++) {
+	for(i = 0; i < NUM_PRIORITY_LEVELS; i++) {
 		MLPQ[i] = NULL;
 	}
 	// next, initialize tcbList

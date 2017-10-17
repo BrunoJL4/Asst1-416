@@ -212,6 +212,9 @@ int insertPnodeMLPQ(pnode *input, uint level);
 /* Message used for debugging. */
 void testMsg();
 
+/* MLPQ navigation for debugging. */
+void mlpqPrint();
+
 #ifdef USE_MY_PTHREAD
 #define pthread_t my_pthread_t
 #define pthread_mutex_t my_pthread_mutex_t

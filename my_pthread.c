@@ -818,17 +818,21 @@ int insertPnodeMLPQ(pnode *input, uint level) {
 	printf("entered insertPnodeMLPQ()!\n");
 	testMsg();
 	if(MLPQ == NULL) {
+		printf("Error, MLPQ is NULL!\n");
 		return 0;
 	}
 	if(input == NULL) {
+		printf("Error, input is NULL!\n");
 		return 0;
 	}
 	if(level > NUM_PRIORITY_LEVELS) {
+		printf("Error, level > NUM_PRIORITY_LEVELS!\n");
 		return 0;
 	}
 	// error-checking done, begin insertion.
 	// first scenario: MLPQ[level] is NULL.
 	if(MLPQ[level] == NULL) {
+		printf("Inserting input node as head!\n");
 		// insert input as head
 		MLPQ[level] = input;
 		return 1;
@@ -837,8 +841,10 @@ int insertPnodeMLPQ(pnode *input, uint level) {
 	// go until we find the last node (temp->next == NULL)
 	pnode *temp = MLPQ[level];
 	while(temp->next != NULL) {
+		printf("Inserting input node in middle/at end!\n");
 		temp = temp->next;
 	}
+	printf("Delinking node from runQueue and putting at end of MLPQ.\n");
 	// set temp->next to input
 	temp->next = input;
 	// input->next is set to NULL (in case we inserted a thread
@@ -854,12 +860,12 @@ int level_slices(int level) {
 	printf("entered level_slices!\n");
 	// base case: level 0, give 1 slice
 	if(level == 0) {
-		printf("entered base case! \n");
+//		printf("entered base case! \n");
 		return 1;
 	}
 	// recursive case: return 2 * recursive func
 	else{
-		printf("entered recusive case!\n");
+//		printf("entered recusive case!\n");
 		return 2*(level_slices(level - 1));
 	}
 

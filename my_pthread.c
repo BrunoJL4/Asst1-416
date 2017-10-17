@@ -178,6 +178,8 @@ int my_pthread_create(my_pthread_t *thread, pthread_attr_t * attr, void *(*funct
 		// insert a pnode containing the ID at Level 0 of MLPQ
 		pnode *node = createPnode(tid);
 		insertPnodeMLPQ(node, 0);
+		// increment number of threads so far
+		threadsSoFar ++;
 		*thread = tid;
 		return 0;
 	}
@@ -199,6 +201,7 @@ int my_pthread_create(my_pthread_t *thread, pthread_attr_t * attr, void *(*funct
 	}
 	//returns the new thread id on success
 	*thread = tid;
+	printf("finished my_pthread_create()!\n");
 	return 0; 
 }
 
@@ -211,6 +214,7 @@ int my_pthread_yield() {
 	tcbList[(uint) current_thread]->status = THREAD_YIELDED;
 	current_thread = MAX_NUM_THREADS + 1;
 	swapcontext(&CurrentContext, &Manager);
+	printf("finished my_pthread_yield()!\n");
 	return 1;
 
 }
@@ -236,6 +240,7 @@ void my_pthread_exit(void *value_ptr) {
     current_thread = MAX_NUM_THREADS + 1;
     current_exited = 1;
     swapcontext(&CurrentContext, &Manager);
+    printf("finished my_pthread_exit()!\n");
 }
 
 
@@ -249,7 +254,7 @@ int my_pthread_join(my_pthread_t thread, void **value_ptr) {
     //what if thread doesn't exist?
     if((tcbList[thread_int]) == NULL){
         fprintf(stderr, "pthread_join(): Target thread %d does not exist!\n", thread_int);
-        return 0;
+        return -1;
     }
   
     // set target thread's waitingThread to this thread
@@ -267,8 +272,8 @@ int my_pthread_join(my_pthread_t thread, void **value_ptr) {
 
     // swap back to the manager
     swapcontext(&CurrentContext, &Manager);
-        
-    return 1; // success
+     printf("finished my_pthread_join()!\n");
+    return 0; // success
 }
 
 /* initial the mutex lock */
@@ -278,7 +283,7 @@ int my_pthread_mutex_init(my_pthread_mutex_t *mutex, const pthread_mutexattr_t *
 	//Check if mutex is initialized
 	//if so, return
 	if (&mutex != NULL) {
-		return 0;
+		return -1;
 	}
 	//otherwise, initialize mutex
 	mutex = malloc(sizeof(my_pthread_mutex_t));
@@ -286,8 +291,8 @@ int my_pthread_mutex_init(my_pthread_mutex_t *mutex, const pthread_mutexattr_t *
 	mutex->waitQueue = NULL;
 	mutex->ownerID = -1;
 	mutex->attr = attr;
-	
-	return 1;
+	printf("finished my_mutex_init()\n");
+	return 0;
 }
 
 /* aquire the mutex lock */
@@ -326,8 +331,8 @@ int my_pthread_mutex_lock(my_pthread_mutex_t *mutex) {
 	mutex->status = LOCKED;
 	//Set mutex owner to current thread
 	mutex->ownerID = current_thread;
-	
-	return 1;
+	printf("finished my_pthread_mutex_lock()!\n");
+	return 0;
 }
 
 /* release the mutex lock */
@@ -337,18 +342,18 @@ int my_pthread_mutex_unlock(my_pthread_mutex_t *mutex) {
 	//If mutex is NOT initialized
 	//user did something bad
 	if (&mutex == NULL) {
-		return 0;
+		return -1;
 	//Elif mutex does not belong to us
 	//we can't unlock it
 	} else if (mutex->ownerID != current_thread) {
-		return 0;
+		return -1;
 	}
 	//otherwise unlock mutex
 	mutex->status = UNLOCKED;
 	//Check waiting queue, destroy mutex if there is no more use
 	if (mutex->waitQueue == NULL) {
 		my_pthread_mutex_destroy(mutex);
-		return 1;
+		return 0;
 	}
 	//alert the next available thread & remove it from queue/add back to run queue
 	pnode *ptr = mutex->waitQueue;
@@ -356,8 +361,8 @@ int my_pthread_mutex_unlock(my_pthread_mutex_t *mutex) {
 	//make this thread ready so it can now acquire this lock
 	tcbList[(uint) ptr->tid]->status = THREAD_READY;
 	free(ptr);
-	
-	return 1;
+	printf("finished my_pthread_mutex_unlock()\n");
+	return 0;
 }
 
 /* destroy the mutex */
@@ -366,15 +371,15 @@ int my_pthread_mutex_destroy(my_pthread_mutex_t *mutex) {
 	testMsg();
 	//If mutex is NOT initialized
 	if (&mutex == NULL) {
-		return 0;
+		return -1;
 	//Elif mutex is locked
 	} else if (mutex->status == LOCKED) {
-		return 0;
+		return -1;
 	}	
 	//otherwise, free the memory used
 	free(mutex);
 		
-	return 1;
+	return 0;
 }
 
 
@@ -388,19 +393,19 @@ int my_pthread_manager() {
 	// check if manager is still considered "active"
 	while(manager_active == 1) {
 		// perform maintenance cycle
-		if(!maintenanceHelper()) {
+		if(maintenanceHelper() != 0) {
 			printf("Error in maintenanceHelper!\n");
-			return 0;
+			return -1;
 		}
 		// perform run queue functions
-		if(!runQueueHelper()) {
+		if(runQueueHelper() != 0) {
 			printf("Error in runQueueHelper!\n");
-			return 0;
+			return -1;
 		}
 	}
 	// We only reach this point when maintenanceHelper()
 	// has set manager_active to 0. Leave the function.
-	return 1;
+	return 0;
 }
 
 
@@ -463,7 +468,7 @@ int maintenanceHelper() {
 		// if a runQueue thread's status isn't any of the four above:
 		else{
 			printf("Error! Thread in runQueue found to have invalid status during maintenance cycle.\n");
-			return 0;
+			return -1;
 		}
 	}
 
@@ -605,8 +610,8 @@ int maintenanceHelper() {
 	}
 	// when runQueue has either been populated with valid, ready threads,
 	// or we've indicated that the manager thread's job has finished,
-	// return 1 to indicate success.
-	return 1;
+	// return 0 to indicate success.
+	return 0;
 }
 
 
@@ -620,11 +625,11 @@ int runQueueHelper() {
 	// first, check and see if the manager thread is still active after
 	// the last round of maintenance
 	if(manager_active == 0) {
-		return 1;
+		return 0;
 	}
 	if(runQueue == NULL) {
 		printf("Error! Went into runQueueHelper() without a populated runQueue. There must be an issue in the MLPQ not resolved in maintenanceHelper().\n");
-		return 0;
+		return -1;
 	}
 
 	// call signal handler for SIGVTALRM, which should activate
@@ -678,12 +683,13 @@ int runQueueHelper() {
 		// this branch shouldn't occur
 		else {
 			printf("Error! Thread %d in runQueue had non-valid status.\n", currId);
-			return 0;
+			return -1;
 		}
 		// go to the next node in the runQueue
 		currPnode = currPnode->next;
 	}
-	return 1;
+	return 0;
+	printf("finished runQueueHelper()\n");
 }
 
 
@@ -727,41 +733,39 @@ int init_manager_thread() {
 //	printf("initializing tcbList\n");
 	tcb *newTcbList[MAX_NUM_THREADS];
 	tcbList = newTcbList;
-	// initialize current_exited to 0
-	current_exited = 0;
 	// initialize all pointers in tcbList to NULL by default.
-	// convention will be that any non-active tcbList cell is
-	// set to NULL for ease of linear search functions.
 //	printf("initializing tcbList pointers to NULL\n");
 	for(i = 0; i < sizeof(tcbList); i++) {
 		tcbList[i] = NULL;
 	}
+	// initialize current_exited to 0
+	current_exited = 0;
 	//now add pnode with Main thread's ID (0) to MLPQ
-//	printf("creating mainNode with TID 0\n");
+	printf("creating mainNode with TID 0\n");
 	pnode *mainNode = createPnode(0);
-//	printf("setting first item in MLPQ level 0 to Main\n");
+	printf("setting first item in MLPQ level 0 to Main\n");
 	insertPnodeMLPQ(mainNode, 0);
-//	printf("setting tcbList[0] to main's tcb\n");
+	printf("setting tcbList[0] to main's tcb\n");
 	tcbList[0] = newTcb;
 	threadsSoFar = 1;
 	runQueue = NULL;
 	// set manager_active to 1
 	manager_active = 1;
 	// initialize manager thread's context
-//	printf("getting Manager's context\n");
+	printf("getting Manager's context\n");
 	getcontext(&Manager);
 	// this is the stack that will be used by the manager context
 	char manager_stack[MEM];
 	// point the manager's stack pointer to the manager_stack we just set
-//	printf("setting Manager's stack attributes\n");
+	printf("setting Manager's stack attributes\n");
 	Manager.uc_stack.ss_sp = manager_stack;
 	// set the manager's stack size to MEM
 	Manager.uc_stack.ss_size = sizeof(manager_stack);
 	// no other context will resume after the manager leaves
-//	printf("setting Manager's uc_link\n");
+	printf("setting Manager's uc_link\n");
 	Manager.uc_link = NULL;
 	// attach manager context to my_pthread_manager()
-//	printf("Making context for manager\n");
+	printf("Making context for manager\n");
 	makecontext(&Manager, (void*)&my_pthread_manager, 0);
 	// allocate memory for signal alarm struct
 //	printf("setting memory for signal alarm struct\n");
@@ -769,8 +773,8 @@ int init_manager_thread() {
 	// install VTALRMhandler as the signal handler for SIGVTALRM
 //	printf("installing VTALRMhandler as signal handler\n");
 	sa.sa_handler = &VTALRMhandler;
-	
-	return 1;
+	printf("finished init_manager_thread()\n");
+	return 0;
 }
 
 
@@ -801,6 +805,7 @@ tcb *createTcb(int status, my_pthread_t tid, stack_t stack, ucontext_t context, 
 	ret->cyclesWaited = 0;
 	// return a pointer to the instance
 //	printf("successfully created tcb #%d\n", tid);
+	printf("finished createTcb()!\n");
 	return ret;
 }
 
@@ -811,6 +816,7 @@ pnode *createPnode(my_pthread_t tid) {
 	pnode *ret = (pnode*) malloc(sizeof(pnode));
 	ret->tid = tid;
 	ret->next = NULL;
+	printf("finished createPnode()\n");
 	return ret;
 }
 
@@ -819,15 +825,15 @@ int insertPnodeMLPQ(pnode *input, uint level) {
 	testMsg();
 	if(MLPQ == NULL) {
 		printf("Error, MLPQ is NULL!\n");
-		return 0;
+		return -1;
 	}
 	if(input == NULL) {
 		printf("Error, input is NULL!\n");
-		return 0;
+		return -1;
 	}
 	if(level > NUM_PRIORITY_LEVELS) {
 		printf("Error, level > NUM_PRIORITY_LEVELS!\n");
-		return 0;
+		return -1;
 	}
 	// error-checking done, begin insertion.
 	// first scenario: MLPQ[level] is NULL.
@@ -835,7 +841,7 @@ int insertPnodeMLPQ(pnode *input, uint level) {
 		printf("Inserting input node as head!\n");
 		// insert input as head
 		MLPQ[level] = input;
-		return 1;
+		return 0;
 	}
 	// second scenario: MLPQ[level] has one or more nodes.
 	// go until we find the last node (temp->next == NULL)
@@ -850,7 +856,8 @@ int insertPnodeMLPQ(pnode *input, uint level) {
 	// input->next is set to NULL (in case we inserted a thread
 	// from the runQueue)
 	input->next = NULL;
-	return 1;
+	printf("finished insertPnodeMLPQ()\n");
+	return 0;
 }
 
 /* Implements getting the number of slices for a given input level.
@@ -861,6 +868,7 @@ int level_slices(int level) {
 	// base case: level 0, give 1 slice
 	if(level == 0) {
 //		printf("entered base case! \n");
+		printf("finished level_slices()\n");
 		return 1;
 	}
 	// recursive case: return 2 * recursive func
@@ -875,5 +883,8 @@ int level_slices(int level) {
 manager_active. */
 void testMsg() {
 	printf("Currently in thread %d\n", current_thread);
-	printf("manager_active: %d\n", manager_active);
+	if(manager_active == 0) {
+		printf("manager not active yet.\n");
+	}
+	printf("threads so far: %d\n", threadsSoFar);
 }

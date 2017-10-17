@@ -579,7 +579,7 @@ int maintenanceHelper() {
 	// if so, bump up their priority level and set their age to 0.
 	// this means we add them to the next highest level, increment their
 	// priority by 1, and delink them from this level.
-	for(i = 1; i < MAX_NUM_THREADS; i++) {
+	for(i = 1; i < NUM_PRIORITY_LEVELS; i++) {
 		pnode *curr = MLPQ[i];
 		pnode *prev = MLPQ[i];
 		// go through current level's queue

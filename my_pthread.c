@@ -155,11 +155,11 @@ int my_pthread_create(my_pthread_t *thread, pthread_attr_t * attr, void *(*funct
 //	printf("Setting args for new thread!\n");
 	if (arg == NULL) {
 		printf("No args for new thread!\n");
-		makecontext(&context, (void*)&function, 0);
+		makecontext(&context, &function, 0);
 	} 
 	else {
 		printf("One or more args for new thread!\n");
-		makecontext(&context, (void*)&function, 1, arg);
+		makecontext(&context, &function, 1, arg);
 	}
 	//check if we've exceeded max number of threads
 	if (threadsSoFar >= MAX_NUM_THREADS) {
@@ -678,8 +678,8 @@ int maintenanceHelper() {
 
 
 /* this function is the helper function which performs most of
-the work for the manager thread's run queue. Returns 0 on failure,
-1 on success. */
+the work for the manager thread's run queue. Returns -1 on failure,
+0 on success. */
 int runQueueHelper() {
 	printf("entered runQueueHelper()!\n");
 	mlpqPrint();
@@ -752,7 +752,7 @@ int runQueueHelper() {
 		// if this context resumed and current status is THREAD_WAITING,
 		else if(current_status == THREAD_WAITING) {
 			// Do nothing here, since thread's status was already set
-			printf("Thread #%d is waiting1\n", currId);
+			printf("Thread #%d is waiting!\n", currId);
 		}
 		// this branch shouldn't occur
 		else {
@@ -762,8 +762,8 @@ int runQueueHelper() {
 		// go to the next node in the runQueue
 		currPnode = currPnode->next;
 	}
-	return 0;
 	printf("finished runQueueHelper()\n");
+	return 0;
 }
 
 

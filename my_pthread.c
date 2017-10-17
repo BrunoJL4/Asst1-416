@@ -494,7 +494,7 @@ int maintenanceHelper() {
 	int timeSlicesLeft = 20;
 	int i;
 	printf("going into part 2 loop\n");
-	for(i = 0; i < sizeof(MLPQ); i++) {
+	for(i = 0; i < NUM_PRIORITY_LEVELS; i++) {
 		printf("current level in part 2 loop: %d\n", i);
 		// formula for priority levels v. time slices: 2^(level)
 		int numSlices = level_slices(i);

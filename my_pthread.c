@@ -404,9 +404,6 @@ int maintenanceHelper() {
 		my_pthread_t currId = currPnode->tid;
 		tcb *currTcb = tcbList[(uint)currId];
 		// if a runQueue thread's status is THREAD_DONE:
-		
-        // Took a look at this, made minor syntax changes, long as checkAndDeallocateStack
-        // and InsertPnodeMLPQ work as intended, stage 1 looks good. - Joe Gormley
 		if(currTcb->status == THREAD_DONE) {
 			// deallocate the thread's tcb through tcbList
 			free(currTcb);
@@ -453,7 +450,6 @@ int maintenanceHelper() {
 	}
 
 	// second part: populating the run queue and allocating time slices.
-
 	// go through MLPQ, starting at highest priority level and going
 	// down until we've given out time slices, putting valid threads
 	// into the run queue and setting their time slices accordingly.
@@ -502,6 +498,9 @@ int maintenanceHelper() {
 				temp->next = tempCurr;
 				// point its next member to NULL.
 				tempCurr->next = NULL;
+				// set the thread's cyclesWaited to 0, as it's being
+				// given a chance to run.
+				currTcb->cyclesWaited = 0;
 				// give the thread the appropriate number of time slices
 				currTcb->timeSlices = numSlices;
 				// subtract numSlices from timeSlicesLeft
@@ -514,11 +513,47 @@ int maintenanceHelper() {
 		}
 	}
 
+	// third part: searching all non-0 levels of the MLPQ to see if any threads
+	// not at P0 have THREAD_READY status and an age greater than 5.
+	// if so, bump up their priority level and set their age to 0.
+	// this means we add them to the next highest level, increment their
+	// priority by 1, and delink them from this level.
+	for(i = 1; i < MAX_NUM_THREADS; i++) {
+		pnode *curr = MLPQ[i];
+		pnode *prev = MLPQ[i];
+		// go through current level's queue
+		while(curr != NULL) {
+			tcb *currTcb = tcbList[(uint) curr->tid];
+			// if the thread has THREAD_READY status:
+			if(currTcb->status == THREAD_READY) {
+				// if the thread's age is 5 cycles or greater,
+				// "promote" it
+				if(currTcb->cyclesWaited >=5) {
+					// set its age to 0
+					currTcb->cyclesWaited = 0;
+					// decrement its priority member
+					currTcb->priority -= 1;
+					// set a temp ptr to the current thread
+					pnode *temp = curr;
+					// delink it from the current queue
+					prev->next = curr->next;
+					// insert it into the next highest level
+					insertPnodeMLPQ(temp, currTcb->priority);
+				}
+				// otherwise, increase its age by 1
+				else{ 
+					currTcb->cyclesWaited ++;
+				}
+			}
+			prev = curr;
+			curr = curr->next;
+		}
+	}
+
 	// final part: check if runQueue and MLPQ are both empty. if they
 	// are, set manager_active to 0.
 	if(runQueue == NULL) {
 		int mlpq_empty = 1;
-		int i;
 		// check and see if all queues in MLPQ are empty.
 		for(i = 0; i < sizeof(MLPQ); i++) {
 			if(MLPQ[i] != NULL) {
@@ -697,6 +732,8 @@ tcb *createTcb(int status, my_pthread_t tid, stack_t stack, ucontext_t context, 
 	ret->waitingThread = MAX_NUM_THREADS + 2;
 	// valuePtr is NULL by default
 	ret->valuePtr = NULL;
+	// cyclesWaited is 0 by default
+	ret->cyclesWaited = 0;
 	// return a pointer to the instance
 	return ret;
 }

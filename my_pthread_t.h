@@ -91,6 +91,19 @@ typedef struct threadControlBlock {
 	if no valuePtr is currently being stored.*/
 	void *valuePtr;
 
+	/* The number of runQueue cycles the given thread has waited without
+	running. 0 by default, and increases as a thread waits for longer.
+	Indicates to the Manager thread that a thread needs to be promoted.
+
+	cyclesWaited should be incremented if, and ONLY if, a thread at priority
+	level below 0 remains in the MLPQ with status THREAD_READY after
+	the runQueue has been populated.
+
+	cyclesWaited should be decreased to 0 if, and ONLY if, a thread is
+	added from the MLPQ to the runQueue, OR if the thread is promoted
+	in priority.*/
+	uint cyclesWaited;
+
 } tcb; 
 
 

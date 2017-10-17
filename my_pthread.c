@@ -726,18 +726,15 @@ int init_manager_thread() {
 //	testMsg();
 	// initialize global variables before adding Main's thread
 	// to the manager
-	// first, initialize array for MLPQ
-//	printf("initializing MLPQ array\n");
+
 	int i;
 //	printf("setting MLPQ queues to NULL by default\n");
+	// initialize MLPQ state
 	for(i = 0; i < NUM_PRIORITY_LEVELS; i++) {
 		MLPQ[i] = NULL;
 	}
-	// next, initialize tcbList
 //	printf("initializing tcbList\n");
-	tcb *newTcbList[MAX_NUM_THREADS];
-	tcbList = newTcbList;
-	// initialize all pointers in tcbList to NULL by default.
+	// initialize tcbList state
 //	printf("initializing tcbList pointers to NULL\n");
 	for(i = 0; i < sizeof(tcbList); i++) {
 		tcbList[i] = NULL;

@@ -117,7 +117,7 @@ struct itimerval timer;
 /* create a new thread */
 int my_pthread_create(my_pthread_t *thread, pthread_attr_t * attr, void *(*function)(void*), void * arg) {
 	printf("entered my_pthread_create()!\n");
-	testMsg();
+//	testMsg();
 	// flag that is 1 if we're initializing the manager thread,
 	// 0 if not. we'll use this at the end of the function to decide
 	// whether or not to swap contexts back to manager (ONLY swap
@@ -128,10 +128,17 @@ int my_pthread_create(my_pthread_t *thread, pthread_attr_t * attr, void *(*funct
 	if (manager_active != 1) {
 		initializingManager = 1;
 		init_manager_thread();
+		if(MLPQ[0] == NULL) {
+			printf("MLPQ[0] is NULL after leaving init_manager_thread!\n");
+		}
+		else {
+			printf("MLPQ[0] is NOT NULL after leaving init_manager_thread!\n");
+			printf("MLPQ[0]->tid is: %d\n", MLPQ[0]->tid);
+		}
 	}
 	//set information for new child thread's context
 	//thread should be ready to run by default
-	printf("Setting attributes for new thread!\n");
+//	printf("Setting attributes for new thread!\n");
 	int status = THREAD_READY;
 	my_pthread_t tid = threadsSoFar;
 	// set aside a stack for the user
@@ -153,7 +160,7 @@ int my_pthread_create(my_pthread_t *thread, pthread_attr_t * attr, void *(*funct
 	//turns out that functions called through pthread always take 0 or 1 arguments
 	//therefore the functions called by the user must always take some type of struct (void *) 
 	//if they wish to pass multiple args
-	printf("Setting args for new thread!\n");
+//	printf("Setting args for new thread!\n");
 	if (arg == NULL) {
 		printf("No args for new thread!\n");
 		makecontext(&context, (void*)&function, 0);
@@ -194,8 +201,9 @@ int my_pthread_create(my_pthread_t *thread, pthread_attr_t * attr, void *(*funct
 	}
 	else{
 		printf("MLPQ level 0 is NOT NULL!\n");
+		printf("MLPQ[0]->tid is: %d\n", MLPQ[0]->tid);
 	}
-	printf("Creating newTcb for new thread #%d\n", tid);
+//	printf("Creating newTcb for new thread #%d\n", tid);
 	tcb *newTcb = createTcb(status, tid, context.uc_stack, context, timeSlices);
 	// add the new tcb to the tcbList at the cell corresponding to its ID
 	if(MLPQ[0] == NULL) {
@@ -203,6 +211,7 @@ int my_pthread_create(my_pthread_t *thread, pthread_attr_t * attr, void *(*funct
 	}
 	else{
 		printf("MLPQ level 0 is NOT NULL!\n");
+		printf("MLPQ[0]->tid is: %d\n", MLPQ[0]->tid);
 	}
 	printf("modifying tcbList with new thread's tcb!\n");
 	tcbList[threadsSoFar] = newTcb;
@@ -211,9 +220,10 @@ int my_pthread_create(my_pthread_t *thread, pthread_attr_t * attr, void *(*funct
 	}
 	else{
 		printf("MLPQ level 0 is NOT NULL!\n");
+		printf("MLPQ[0]->tid is: %d\n", MLPQ[0]->tid);
 	}
 	// create new pnode for new thread
-	printf("Creating pnode for new thread #%d\n", tid);
+//	printf("Creating pnode for new thread #%d\n", tid);
 	pnode *node = createPnode(tid);
 	// insert new node to Level 0 of MLPQ
 	printf("Inserting new thread into MLPQ level 0!\n");
@@ -236,7 +246,7 @@ int my_pthread_create(my_pthread_t *thread, pthread_attr_t * attr, void *(*funct
 /* give CPU pocession to other user level threads voluntarily */
 int my_pthread_yield() {
 	printf("entered my_pthread_yield()!\n");
-	testMsg();
+//	testMsg();
 	//set thread to yield, set current_thread to manager, swap contexts.
 	//manager will yield job in stage 1 of maintenance
 	tcbList[(uint) current_thread]->status = THREAD_YIELDED;
@@ -251,7 +261,7 @@ int my_pthread_yield() {
 thread waiting on it, if any */
 void my_pthread_exit(void *value_ptr) {
 	printf("entered my_pthread_exit()!\n");
-	testMsg();
+//	testMsg();
 	// create uint version of current thread to reduce casts
     uint current_thread_int = (uint) current_thread;
 
@@ -275,7 +285,7 @@ void my_pthread_exit(void *value_ptr) {
 /* wait for thread termination */
 int my_pthread_join(my_pthread_t thread, void **value_ptr) {
 	printf("entered my_pthread_join()!\n");
-	testMsg();
+//	testMsg();
      // create uint version of current thread to reduce casts
     uint thread_int = (uint) thread;
 
@@ -307,7 +317,7 @@ int my_pthread_join(my_pthread_t thread, void **value_ptr) {
 /* initial the mutex lock */
 int my_pthread_mutex_init(my_pthread_mutex_t *mutex, const pthread_mutexattr_t *attr) {
 	printf("entered my_mutex_init()!\n");
-	testMsg();
+//	testMsg();
 	//Check if mutex is initialized
 	//if so, return
 	if (&mutex != NULL) {
@@ -326,7 +336,7 @@ int my_pthread_mutex_init(my_pthread_mutex_t *mutex, const pthread_mutexattr_t *
 /* aquire the mutex lock */
 int my_pthread_mutex_lock(my_pthread_mutex_t *mutex) {
 	printf("entered my_pthread_mutex_lock()!\n");
-	testMsg();
+//	testMsg();
 	//Call my_pthread_mutex_init
 	//calling with NULL attr argument sets the property to default
 	my_pthread_mutex_init(mutex, NULL);
@@ -366,7 +376,7 @@ int my_pthread_mutex_lock(my_pthread_mutex_t *mutex) {
 /* release the mutex lock */
 int my_pthread_mutex_unlock(my_pthread_mutex_t *mutex) {
 	printf("entered my_pthread_mutex_unlock()!\n");
-	testMsg();
+//	testMsg();
 	//If mutex is NOT initialized
 	//user did something bad
 	if (&mutex == NULL) {
@@ -396,7 +406,7 @@ int my_pthread_mutex_unlock(my_pthread_mutex_t *mutex) {
 /* destroy the mutex */
 int my_pthread_mutex_destroy(my_pthread_mutex_t *mutex) {
 	printf("entered my_pthread_mutex_destroy()!\n");
-	testMsg();
+//	testMsg();
 	//If mutex is NOT initialized
 	if (&mutex == NULL) {
 		return -1;
@@ -417,7 +427,7 @@ int my_pthread_mutex_destroy(my_pthread_mutex_t *mutex) {
 Returns 0 on failure, 1 on success. */
 int my_pthread_manager() {
 	printf("entered my_pthread_manager()!\n");
-	testMsg();
+//	testMsg();
 	// check if manager is still considered "active"
 	while(manager_active == 1) {
 		// perform maintenance cycle
@@ -442,7 +452,7 @@ the manager thread's maintenance cycle. Returns 0 on failure,
 1 on success.*/
 int maintenanceHelper() {
 	printf("entered maintenanceHelper()!\n");
-	testMsg();
+//	testMsg();
 	// first part: clearing the run queue, and performing
 	// housekeeping depending on the thread's status
 	pnode *currPnode = runQueue;
@@ -649,7 +659,7 @@ the work for the manager thread's run queue. Returns 0 on failure,
 1 on success. */
 int runQueueHelper() {
 	printf("entered runQueueHelper()!\n");
-	testMsg();
+//	testMsg();
 	// first, check and see if the manager thread is still active after
 	// the last round of maintenance
 	if(manager_active == 0) {
@@ -736,7 +746,7 @@ void VTALRMhandler(int signum) {
 
 int init_manager_thread() {
 	printf("entered init_manager_thread()!\n");
-	testMsg();
+//	testMsg();
 	// initialize global variables before adding Main's thread
 	// to the manager
 	// first, initialize array for MLPQ
@@ -760,17 +770,23 @@ int init_manager_thread() {
 	// initialize current_exited to 0
 	current_exited = 0;
 	// Get the current context (this is the main context)
-	printf("getting main context!\n");
+//	printf("getting main context!\n");
 	getcontext(&Main);
 	// Point its uc_link to Manager (Manager is its "parent thread")
-	printf("pointing main's uc_link to Manager\n");
+//	printf("pointing main's uc_link to Manager\n");
 	Main.uc_link = &Manager;
+	//now add pnode with Main thread's ID (0) to MLPQ
+//	printf("creating mainNode with TID 0\n");
+	pnode *mainNode = createPnode(0);
+//	printf("inserting main pnode into MLPQ level 0!\n");
+	insertPnodeMLPQ(mainNode, 0);
 	// initialize tcb for main
 	if(MLPQ[0] == NULL) {
 		printf("MLPQ level 0 is NULL!\n");
 	}
 	else{
 		printf("MLPQ level 0 is NOT NULL!\n");
+		printf("MLPQ[0]->tid is: %d\n", MLPQ[0]->tid);
 	}
 	printf("initializing tcb for main\n");
 	tcb *newTcb = createTcb(THREAD_READY, 0, Main.uc_stack, Main, 0);
@@ -779,33 +795,29 @@ int init_manager_thread() {
 	}
 	else{
 		printf("MLPQ level 0 is NOT NULL!\n");
+		printf("MLPQ[0]->tid is: %d\n", MLPQ[0]->tid);
 	}
-	//now add pnode with Main thread's ID (0) to MLPQ
-	printf("creating mainNode with TID 0\n");
-	pnode *mainNode = createPnode(0);
-	printf("inserting main pnode into MLPQ level 0!\n");
-	insertPnodeMLPQ(mainNode, 0);
-	printf("setting tcbList[0] to main's tcb\n");
+//	printf("setting tcbList[0] to main's tcb\n");
 	tcbList[0] = newTcb;
 	threadsSoFar = 1;
 	runQueue = NULL;
 	// set manager_active to 1
 	manager_active = 1;
 	// initialize manager thread's context
-	printf("getting Manager's context\n");
+//	printf("getting Manager's context\n");
 	getcontext(&Manager);
 	// this is the stack that will be used by the manager context
 	char manager_stack[MEM];
 	// point the manager's stack pointer to the manager_stack we just set
-	printf("setting Manager's stack attributes\n");
+//	printf("setting Manager's stack attributes\n");
 	Manager.uc_stack.ss_sp = manager_stack;
 	// set the manager's stack size to MEM
 	Manager.uc_stack.ss_size = sizeof(manager_stack);
 	// no other context will resume after the manager leaves
-	printf("setting Manager's uc_link\n");
+//	printf("setting Manager's uc_link\n");
 	Manager.uc_link = NULL;
 	// attach manager context to my_pthread_manager()
-	printf("Making context for manager\n");
+//	printf("Making context for manager\n");
 	makecontext(&Manager, (void*)&my_pthread_manager, 0);
 	// allocate memory for signal alarm struct
 //	printf("setting memory for signal alarm struct\n");
@@ -814,13 +826,21 @@ int init_manager_thread() {
 //	printf("installing VTALRMhandler as signal handler\n");
 	sa.sa_handler = &VTALRMhandler;
 	printf("finished init_manager_thread()\n");
+	printf("MLPQ[0]->tid is: %d\n", MLPQ[0]->tid);
 	return 0;
 }
 
 
 tcb *createTcb(int status, my_pthread_t tid, stack_t stack, ucontext_t context, uint timeSlizes) {
 	printf("entered createTcb()!\n");
-	testMsg();
+	if(MLPQ[0] == NULL) {
+		printf("MLPQ level 0 is NULL in createTcb!\n");
+	}
+	else{
+		printf("MLPQ level 0 is NOT NULL in createTcb!\n");
+		printf("MLPQ[0]->tid is: %d\n", MLPQ[0]->tid);
+	}
+//	testMsg();
 	printf("input tid: %d\n", tid);
 	// allocate memory for tcb instance
 //	printf("mallocing memory for new tcb\n");
@@ -852,7 +872,7 @@ tcb *createTcb(int status, my_pthread_t tid, stack_t stack, ucontext_t context, 
 
 pnode *createPnode(my_pthread_t tid) {
 	printf("entered createPnode()!\n");
-	testMsg();
+//	testMsg();
 	pnode *ret = (pnode*) malloc(sizeof(pnode));
 	ret->tid = tid;
 	ret->next = NULL;
@@ -862,7 +882,7 @@ pnode *createPnode(my_pthread_t tid) {
 
 int insertPnodeMLPQ(pnode *input, uint level) {
 	printf("entered insertPnodeMLPQ()!\n");
-	testMsg();
+//	testMsg();
 	if(MLPQ == NULL) {
 		printf("Error, MLPQ is NULL!\n");
 		return -1;

@@ -206,7 +206,7 @@ int my_pthread_create(my_pthread_t *thread, pthread_attr_t * attr, void *(*funct
 	// if we've just initialized the manager thread, swap to it because
 	// we're in the Main context and need to give the Manager control
 	if(initializingManager == 1) {
-		printf("Just initialized manager thread, swapping context to it.\n");
+		printf("Just initialized manager thread, swapping context from thread #%d to Manager.\n", current_thread);
 		current_thread = MAX_NUM_THREADS + 1;	
 		swapcontext(&CurrentContext, &Manager);
 	}
@@ -223,6 +223,7 @@ int my_pthread_yield() {
 	//set thread to yield, set current_thread to manager, swap contexts.
 	//manager will yield job in stage 1 of maintenance
 	tcbList[(uint) current_thread]->status = THREAD_YIELDED;
+	printf("swapping contexts from thread #%d to Manager\n", current_thread);
 	current_thread = MAX_NUM_THREADS + 1;
 	swapcontext(&CurrentContext, &Manager);
 	printf("finished my_pthread_yield()!\n");
@@ -248,6 +249,7 @@ void my_pthread_exit(void *value_ptr) {
     }
     
     // swap back to the Manager context
+    printf("swapping contexts from thread #%d to Manager\n", current_thread);
     current_thread = MAX_NUM_THREADS + 1;
     current_exited = 1;
     swapcontext(&CurrentContext, &Manager);
@@ -280,8 +282,9 @@ int my_pthread_join(my_pthread_t thread, void **value_ptr) {
     // have been terminated by the manager thread before the user
     // acceses value_ptr.
     *value_ptr = tcbList[(uint) current_thread]->valuePtr;
-
+    printf("swapping contexts from thread #%d to Manager\n", current_thread);
     // swap back to the manager
+    current_thread = MAX_NUM_THREADS + 1;
     swapcontext(&CurrentContext, &Manager);
      printf("finished my_pthread_join()!\n");
     return 0; // success
@@ -416,6 +419,7 @@ int my_pthread_manager() {
 		}
 	}
 	// We only reach this point when maintenanceHelper()
+	printf("Returning from manager thread.\n");
 	// has set manager_active to 0. Leave the function.
 	return 0;
 }
@@ -501,6 +505,7 @@ int maintenanceHelper() {
 		// if we don't have enough timeSlices left to distribute to any node in
 		// the current level, break (prevents searching further levels)
 		if(numSlices > timeSlicesLeft) {
+			printf("Ran out of time slices (before entering level.\n");
 			break;
 		}
 		printf("setting variables to go through queue at level: %d\n",i);
@@ -508,14 +513,16 @@ int maintenanceHelper() {
 		pnode *currPnode = MLPQ[i];
 		pnode *prev = currPnode;
 		printf("beginning to run through queue\n");
+		mlpqPrint();
 		while(currPnode != NULL) {
 			// don't search the current level further if not enough
 			// time slices are left.
 			if(numSlices > timeSlicesLeft) {
+				printf("Ran out of time slices (in a level)!\n");
 				break;
 			}
-			printf("getting current pnode's ID\n");
 			my_pthread_t currId = currPnode->tid;
+			printf("current pnode's ID: %d\n", currId);
 			printf("accessing current node's tcbList\n");
 			tcb *currTcb = tcbList[(uint) currId];
 			printf("checking if current thread's status is THREAD_READY\n");
@@ -530,7 +537,7 @@ int maintenanceHelper() {
 					// set MLPQ[i]'s pointer to the next node
 					MLPQ[i] = MLPQ[i]->next;
 				}
-				// second case: pnode isn't first node (e.g. is
+				// second case: pnode isn't first node in level (e.g. is
 				// in the middle or is the last node)
 				else{
 					printf("pnode isn't first node\n");
@@ -540,10 +547,14 @@ int maintenanceHelper() {
 				pnode *temp = runQueue;
 				printf("adding tempCurr to end of runQueue\n");
 				
-				//if RunQ is empty, insert Node
+				//if runQueue is empty, just set runQueue to current
 				if(runQueue == NULL){
-						runQueue = tempCurr;
-				}else{ //otherwise, add to the end of Q
+					printf("runQueue empty, adding node #%d to beginning\n", currId);
+					runQueue = tempCurr;
+				}
+				//otherwise, add to the end of queue
+				else{ 
+					printf("runQueue populated, adding node #%d to end\n");
 					while(temp->next != NULL) {
 						temp = temp->next;
 					}
@@ -551,26 +562,24 @@ int maintenanceHelper() {
 				}
 				
 				// point its next member to NULL.
-				printf("setting tempCurr->next\n");
+//				printf("setting tempCurr->next\n");
 				tempCurr->next = NULL;
 				// set the thread's cyclesWaited to 0, as it's being
 				// given a chance to run.
-				printf("setting currTcb->cyclesWaited\n");
+//				printf("setting currTcb->cyclesWaited\n");
 				currTcb->cyclesWaited = 0;;
 				// give the thread the appropriate number of time slices
-				printf("giving thread appropriate number of time slices\n");
+//				printf("giving thread %d this number of time slices: %d\n", currId, numSlices);
 				currTcb->timeSlices = numSlices;
 				// subtract numSlices from timeSlicesLeft
 				timeSlicesLeft = timeSlicesLeft - numSlices;
 				// change its corresponding thread's status to THREAD_READY.
 				printf("setting currTcb->status to THREAD_READY\n");
 				currTcb->status = THREAD_READY;
-				printf("line 531\n");
 			}
-			printf("continuing in MLPQ navigation\n");
+			printf("continuing in MLPQ level %d navigation\n", i);
 			prev = currPnode;
 			currPnode = currPnode->next;
-			printf("at end of level in MLPQ: %d\n", i);
 		}
 	}
 
@@ -579,17 +588,22 @@ int maintenanceHelper() {
 	// if so, bump up their priority level and set their age to 0.
 	// this means we add them to the next highest level, increment their
 	// priority by 1, and delink them from this level.
+	printf("checking MLPQ to see if any threads were left over and ready, past P0.\n");
 	for(i = 1; i < NUM_PRIORITY_LEVELS; i++) {
 		pnode *curr = MLPQ[i];
 		pnode *prev = MLPQ[i];
 		// go through current level's queue
+		printf("Going through level %d's queue!\n", i);
 		while(curr != NULL) {
-			tcb *currTcb = tcbList[(uint) curr->tid];
+			my_pthread_t currId = curr->tid;
+			tcb *currTcb = tcbList[(uint) currId];
 			// if the thread has THREAD_READY status:
 			if(currTcb->status == THREAD_READY) {
+				printf("thread #%d was left behind!\n", currId);
 				// if the thread's age is 5 cycles or greater,
 				// "promote" it
 				if(currTcb->cyclesWaited >=5) {
+					printf("thread #%d is being promoted.\n", currId);
 					// set its age to 0
 					currTcb->cyclesWaited = 0;
 					// decrement its priority member
@@ -603,6 +617,7 @@ int maintenanceHelper() {
 				}
 				// otherwise, increase its age by 1
 				else{ 
+					printf("thread #%d is being increased in age.\n", currId);
 					currTcb->cyclesWaited ++;
 				}
 			}
@@ -625,6 +640,7 @@ int maintenanceHelper() {
 			}
 		}
 		if(mlpq_empty == 1) {
+			printf("MLPQ and runQueue were found as empty in maintenanceHelper()!\n");
 			manager_active = 0;
 		}
 	}
@@ -668,6 +684,7 @@ int runQueueHelper() {
 	while(currPnode != NULL) {
 		my_pthread_t currId = currPnode->tid;
 		tcb *currTcb = tcbList[(uint) currId];
+		printf("in runQueue at thread: %d\n", currId);
 		// grab number of time slices allowed for the thread
 		int slicesLeft = currTcb->timeSlices;
 		// change status of current thread to running
@@ -682,10 +699,12 @@ int runQueueHelper() {
 		// swap contexts with this child thread.
 		current_exited = 0;
 		current_thread = currId;
+		printf("Swapping contexts from Manager to thread #%d\n", currId);
 		swapcontext(&Manager, &(currTcb->context));
 		// if this context resumed and current_status is still THREAD_RUNNING,
 		// then thread ran to completion before being interrupted.
 		if(current_status == THREAD_RUNNING) {
+			printf("Thread #%d finished running!\n", currId);
 			// turn itimer off for this thread
 			timer.it_value.tv_sec = 0;
 			timer.it_value.tv_usec = 0;
@@ -700,6 +719,7 @@ int runQueueHelper() {
 		// didn't get to run to completion.
 		else if(current_status == THREAD_INTERRUPTED){
 			// Do nothing here, since thread's status was already set
+			printf("Thread #%d was interrupted!\n", currId);
 		}
 		// this branch shouldn't occur
 		else {
@@ -881,11 +901,11 @@ int insertPnodeMLPQ(pnode *input, uint level) {
 Should be 2^(level), so 1 slice at Level 0, 2 at Level 1, 4 at Level 2,
 8 at level 3, 16 at Level 4. */
 int level_slices(int level) {
-	printf("entered level_slices!\n");
+//	printf("entered level_slices!\n");
 	// base case: level 0, give 1 slice
 	if(level == 0) {
 //		printf("entered base case! \n");
-		printf("finished level_slices()\n");
+//		printf("finished level_slices()\n");
 		return 1;
 	}
 	// recursive case: return 2 * recursive func

@@ -539,10 +539,17 @@ int maintenanceHelper() {
 				// add the tempCurr ptr to the end of the runQueue.
 				pnode *temp = runQueue;
 				printf("adding tempCurr to end of runQueue\n");
-				while(temp->next != NULL) {
-					temp = temp->next;
+				
+				//if RunQ is empty, insert Node
+				if(runQueue == NULL){
+						runQueue = tempCurr;
+				}else{ //otherwise, add to the end of Q
+					while(temp->next != NULL) {
+						temp = temp->next;
+					}
+					temp->next = tempCurr;
 				}
-				temp->next = tempCurr;
+				
 				// point its next member to NULL.
 				printf("setting tempCurr->next\n");
 				tempCurr->next = NULL;

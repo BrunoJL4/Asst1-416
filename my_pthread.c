@@ -25,7 +25,7 @@ The initialization function for building the tcb will initialize
 the MLPQ to an array of an allocated length equal to the number
 of priority levels. 5 levels = 5 cells in the array.
 */
-pnode *MLPQ[MAX_NUM_THREADS];
+pnode *MLPQ[NUM_PRIORITY_LEVELS];
 
 
 
@@ -38,7 +38,7 @@ initialized by the manager thread, but otherwise should be treated
 as an array of pointers.
 
 */
-tcb **tcbList;
+tcb *tcbList[MAX_NUM_THREADS];
 
 
 /* This is the Run Queue.

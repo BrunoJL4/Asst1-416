@@ -404,6 +404,7 @@ Returns 0 on failure, 1 on success. */
 int my_pthread_manager() {
 	printf("entered my_pthread_manager()!\n");
 	mlpqPrint();
+	runQueuePrint();
 //	testMsg();
 	// check if manager is still considered "active"
 	while(manager_active == 1) {
@@ -431,6 +432,7 @@ the manager thread's maintenance cycle. Returns 0 on failure,
 int maintenanceHelper() {
 	printf("entered maintenanceHelper()!\n");
 	mlpqPrint();
+	runQueuePrint();
 //	testMsg();
 	// first part: clearing the run queue, and performing
 	// housekeeping depending on the thread's status
@@ -499,42 +501,42 @@ int maintenanceHelper() {
 	int i;
 	printf("going into part 2 loop\n");
 	for(i = 0; i < NUM_PRIORITY_LEVELS; i++) {
-		printf("current level in part 2 loop: %d\n", i);
+//		printf("current level in part 2 loop: %d\n", i);
 		// formula for priority levels v. time slices: 2^(level)
 		int numSlices = level_slices(i);
 		// if we don't have enough timeSlices left to distribute to any node in
 		// the current level, break (prevents searching further levels)
 		if(numSlices > timeSlicesLeft) {
-			printf("Ran out of time slices (before entering level.\n");
+//			printf("Ran out of time slices (before entering level.\n");
 			break;
 		}
-		printf("setting variables to go through queue at level: %d\n",i);
+//		printf("setting variables to go through queue at level: %d\n",i);
 		// go through this level's queue, if at all applicable.
 		pnode *currPnode = MLPQ[i];
 		pnode *prev = currPnode;
-		printf("beginning to run through queue\n");
+//		printf("beginning to run through queue\n");
 		mlpqPrint();
 		while(currPnode != NULL) {
 			// don't search the current level further if not enough
 			// time slices are left.
 			if(numSlices > timeSlicesLeft) {
-				printf("Ran out of time slices (in a level)!\n");
+//				printf("Ran out of time slices (in a level)!\n");
 				break;
 			}
 			my_pthread_t currId = currPnode->tid;
-			printf("current pnode's ID: %d\n", currId);
-			printf("accessing current node's tcbList\n");
+//			printf("current pnode's ID: %d\n", currId);
+//			printf("accessing current node's tcbList\n");
 			tcb *currTcb = tcbList[(uint) currId];
-			printf("checking if current thread's status is THREAD_READY\n");
+//			printf("checking if current thread's status is THREAD_READY\n");
 			// if the current pnode's thread is ready to run:
 			if(currTcb->status == THREAD_READY) {
-				printf("current thread's status is THREAD_READY\n");
+//				printf("current thread's status is THREAD_READY\n");
 				// make a temp ptr to the current pnode.
 				pnode *tempCurr = currPnode;
 				// delink it for one of two cases:
 				// first case: pnode is first node in queue
 				if(currPnode == MLPQ[i]) {
-					printf("pnode is first node in queue\n");
+//					printf("pnode is first node in queue\n");
 					// set MLPQ[i]'s pointer to the next node
 					MLPQ[i] = MLPQ[i]->next;
 					// navigate to next part so that prev and currPnode
@@ -545,23 +547,23 @@ int maintenanceHelper() {
 				// second case: currPnode isn't first node in level (e.g. is
 				// in the middle or is the last node)
 				else{
-					printf("pnode isn't first node\n");
+//					printf("pnode isn't first node\n");
 					// delink current node from MLPQ
 					prev->next = currPnode->next;
 					currPnode = currPnode->next;
 				}
 				// add the tempCurr ptr to the end of the runQueue.
 				pnode *temp = runQueue;
-				printf("adding tempCurr to end of runQueue\n");
+//				printf("adding tempCurr to end of runQueue\n");
 				
 				//if runQueue is empty, just set runQueue to current
 				if(runQueue == NULL){
-					printf("runQueue empty, adding node #%d to beginning\n", currId);
+//					printf("runQueue empty, adding node #%d to beginning\n", currId);
 					runQueue = tempCurr;
 				}
 				//otherwise, add to the end of queue
 				else{ 
-					printf("runQueue populated, adding node #%d to end\n", currId);
+//					printf("runQueue populated, adding node #%d to end\n", currId);
 					while(temp->next != NULL) {
 						temp = temp->next;
 					}
@@ -580,7 +582,7 @@ int maintenanceHelper() {
 				// subtract numSlices from timeSlicesLeft
 				timeSlicesLeft = timeSlicesLeft - numSlices;
 				// change its corresponding thread's status to THREAD_READY.
-				printf("setting currTcb->status to THREAD_READY\n");
+//				printf("setting currTcb->status to THREAD_READY\n");
 				currTcb->status = THREAD_READY;
 			}
 			// if the current thread isn't ready, navigate as normal as we
@@ -589,7 +591,7 @@ int maintenanceHelper() {
 				prev = currPnode;
 				currPnode = currPnode->next;
 			}
-			printf("continuing in MLPQ level %d navigation\n", i);
+//			printf("continuing in MLPQ level %d navigation\n", i);
 		}
 	}
 
@@ -668,6 +670,7 @@ the work for the manager thread's run queue. Returns 0 on failure,
 int runQueueHelper() {
 	printf("entered runQueueHelper()!\n");
 	mlpqPrint();
+	runQueuePrint();
 //	testMsg();
 	// first, check and see if the manager thread is still active after
 	// the last round of maintenance
@@ -950,6 +953,17 @@ void mlpqPrint() {
 				temp = temp->next;
 			}
 		}
+	}
+	return;
+}
+
+/* Print message for testing. Prints contents of runQueue, if any.*/
+void runQueuePrint() {
+	printf("Printing contents of runQueue, if any.\n");
+	pnode *temp = runQueue;
+	while(temp != NULL) {
+		printf("tid: %d\n", temp->tid);
+		temp = temp->next;
 	}
 	return;
 }

@@ -79,12 +79,6 @@ ucontext_t Manager;
 
 /* info on current thread */
 
-//indicates whether the current thread has explicitly called
-//pthread_exit(). 0 if false, 1 if true. used in manager thread
-//to determine whether one calls pthread_exit()'s functionality
-//on a thread that didn't explicitly call it.
-uint current_exited;
-
 /*ID of the currently-running thread. MAX_NUM_THREADS+1 if manager,
 otherwise then some child thread. */
 my_pthread_t current_thread;
@@ -267,8 +261,9 @@ void my_pthread_exit(void *value_ptr) {
 	printf("The thread that is waiting on us is: %d\n",(unsigned int)joinedThread);
 	
     // if the thread has another thread waiting on it (joined this thread),
-    // set its valuePtr member accordingly
+    // set its valuePtr member and its status accordingly
     if((uint)joinedThread != MAX_NUM_THREADS + 2) {
+    	tcbList[joinedThread]->status = THREAD_READY;
     	*(tcbList[joinedThread]->valuePtr) = &value_ptr;
 		printf("This means it knows a thread is waiting on us\n");
     }
@@ -279,7 +274,6 @@ void my_pthread_exit(void *value_ptr) {
     printf("swapping contexts from thread #%d to Manager\n", current_thread);
     my_pthread_t exiting_thread = current_thread;
     current_thread = MAX_NUM_THREADS + 1;
-    current_exited = 1;
     swapcontext(&(tcbList[exiting_thread]->context), &Manager);
     printf("finished my_pthread_exit()!\n");
 }
@@ -754,10 +748,6 @@ int runQueueHelper() {
 			// turn itimer off for this thread
 			timer.it_value.tv_sec = 0;
 			timer.it_value.tv_usec = 0;
-            if(current_exited == 0){ //implicit exit
-                current_thread = tcbList[(uint) currId]->tid;
-                my_pthread_exit(NULL);
-            }
 			currTcb->status = THREAD_DONE;
 		}
 		// if this context resumed and current_status is THREAD_INTERRUPTED,

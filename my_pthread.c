@@ -129,14 +129,11 @@ int my_pthread_create(my_pthread_t *thread, pthread_attr_t * attr, void *(*funct
 	}
 	//set information for new child thread's context
 	my_pthread_t tid = threadsSoFar;
-//	printf("Setting attributes for new thread!\n");
 	ucontext_t context;
 	//initialize context, fill it in with current
 	//context's information
 	getcontext(&context);
-	// any child context should link back to Manager
-	// set new context's stack to our allocated stack
-		//check if we've exceeded max number of threads
+	//check if we've exceeded max number of threads
 	if (threadsSoFar >= MAX_NUM_THREADS) {
 		printf("Exceeded MAX_NUM_THREADS, checking for recyclable TID's\n");
 		//if so, check recyclableQueue, return -1 if there are no available thread ID's
@@ -175,16 +172,12 @@ int my_pthread_create(my_pthread_t *thread, pthread_attr_t * attr, void *(*funct
 		return 0;
 	}
 	// if still using new ID's, just use threadsSoFar as the index and increment it
-//	printf("Creating newTcb for new thread #%d\n", tid);
 	tcb *newTcb = createTcb(tid, context, function);
 	// add the new tcb to the tcbList at the cell corresponding to its ID
-	printf("modifying tcbList with new thread's tcb!\n");
 	tcbList[tid] = newTcb;
 	// create new pnode for new thread
-//	printf("Creating pnode for new thread #%d\n", tid);
 	pnode *node = createPnode(tid);
 	// insert new node to Level 0 of MLPQ
-	printf("Inserting new thread into MLPQ level 0!\n");
 	insertPnodeMLPQ(node, 0);
 	// we've added another thread, so increase this
 	threadsSoFar ++;
@@ -254,15 +247,11 @@ void my_pthread_exit(void *value_ptr) {
 	printf("entered my_pthread_exit()!\n");
 //	testMsg();
 
-	printf("The value i am passing to the joined thread is: %d\n", *((int *)value_ptr));
-	
 	// create uint version of current thread to reduce casts
     uint current_thread_int = (uint) current_thread;
-	printf("The thread that called exit is: %d\n", current_thread);
 
     // thread that the calling thread is joined to
     my_pthread_t joinedThread = tcbList[current_thread_int]->waitingThread;
-	printf("The thread that is waiting on us is: %d\n",(unsigned int)joinedThread);
 	
     // if the thread has another thread waiting on it (joined this thread),
     // set its valuePtr member and its status accordingly
@@ -293,18 +282,15 @@ int my_pthread_join(my_pthread_t thread, void **value_ptr) {
     uint thread_int = (uint) thread;
 
     //what if thread doesn't exist?
-    printf("checking if thread exists\n");
     if((tcbList[thread_int]) == NULL){
         fprintf(stderr, "pthread_join(): Target thread %d does not exist!\n", thread_int);
         return -1;
     }
   
     // set target thread's waitingThread to this thread
-    printf("setting target thread's waitingThread to this thread\n");
     tcbList[thread_int]->waitingThread = current_thread;
 
     // set this thread's status to THREAD_WAITING
-    printf("setting current thread's status to THREAD_WAITING\n");
     tcbList[(uint) current_thread]->status = THREAD_WAITING;
     // set global flag for current status to THREAD_WAITING so the
     // runQueueHelper() knows.
@@ -315,7 +301,6 @@ int my_pthread_join(my_pthread_t thread, void **value_ptr) {
     // target thread's valuePtr might be undefined because it could
     // have been terminated by the manager thread before the user
     // acceses value_ptr.
-    printf("Setting valuePtr\n");
 //    printf("status of current thread in tcbList: %d\n", tcbList[current_thread]->status);
     tcbList[current_thread]->valuePtr = value_ptr;
     printf("swapping contexts from thread #%d to Manager\n", current_thread);
@@ -585,11 +570,9 @@ int maintenanceHelper() {
 				}
 				// add the tempCurr ptr to the end of the runQueue.
 				pnode *temp = runQueue;
-//				printf("adding tempCurr to end of runQueue\n");
 				
 				//if runQueue is empty, just set runQueue to current
 				if(runQueue == NULL){
-//					printf("runQueue empty, adding node #%d to beginning\n", currId);
 					runQueue = tempCurr;
 				}
 				//otherwise, add to the end of queue
@@ -601,19 +584,15 @@ int maintenanceHelper() {
 					temp->next = tempCurr;
 				}
 				// point its next member to NULL.
-//				printf("setting tempCurr->next\n");
 				tempCurr->next = NULL;
 				// set the thread's cyclesWaited to 0, as it's being
 				// given a chance to run.
-//				printf("setting currTcb->cyclesWaited\n");
 				currTcb->cyclesWaited = 0;;
 				// give the thread the appropriate number of time slices
-//				printf("giving thread %d this number of time slices: %d\n", currId, numSlices);
 				currTcb->timeSlices = numSlices;
 				// subtract numSlices from timeSlicesLeft
 				timeSlicesLeft = timeSlicesLeft - numSlices;
 				// change its corresponding thread's status to THREAD_READY.
-//				printf("setting currTcb->status to THREAD_READY\n");
 				currTcb->status = THREAD_READY;
 			}
 			// if the current thread isn't ready, navigate as normal as we
@@ -622,7 +601,6 @@ int maintenanceHelper() {
 				prev = currPnode;
 				currPnode = currPnode->next;
 			}
-//			printf("continuing in MLPQ level %d navigation\n", i);
 		}
 	}
 
@@ -821,7 +799,6 @@ int init_manager_thread() {
 	for(i = 0; i < NUM_PRIORITY_LEVELS; i++) {
 		MLPQ[i] = NULL;
 	}
-//	printf("initializing tcbList\n");
 	// initialize tcbList state
 	printf("initializing tcbList pointers to NULL\n");
 	for(i = 0; i < MAX_NUM_THREADS; i++) {
@@ -834,12 +811,10 @@ int init_manager_thread() {
 	//now add pnode with Main thread's ID (0) to MLPQ
 	printf("creating mainNode with TID 0\n");
 	pnode *mainNode = createPnode(0);
-//	printf("inserting main pnode into MLPQ level 0!\n");
 	insertPnodeMLPQ(mainNode, 0);
 	// initialize tcb for main
 	printf("initializing tcb for main\n");
 	tcb *newTcb = createTcb(0, Main, NULL);
-//	printf("setting tcbList[0] to main's tcb\n");
 	tcbList[0] = newTcb;
 	threadsSoFar = 1;
 	runQueue = NULL;
@@ -865,7 +840,6 @@ int init_manager_thread() {
 	printf("setting memory for signal alarm struct\n");
 	memset(&sa, 0, sizeof(sa));
 	// install VTALRMhandler as the signal handler for SIGVTALRM
-//	printf("installing VTALRMhandler as signal handler\n");
 	sa.sa_handler = &VTALRMhandler;
 	printf("finished init_manager_thread()\n");
 	return 0;
@@ -877,17 +851,12 @@ tcb *createTcb(my_pthread_t tid, ucontext_t context, void *(*function)(void*)) {
 //	testMsg();
 	printf("input tid: %d\n", tid);
 	// allocate memory for tcb instance
-//	printf("mallocing memory for new tcb\n");
 	tcb *ret = (tcb*) malloc(sizeof(tcb));
 	// set members to inputs
-//	printf("setting status\n");
 	ret->status = THREAD_READY;
-//	printf("setting tid\n");
 	ret->tid = tid;
-//	printf("setting context for tcb\n");
 	ret->context = context;
 	// set priority to 0 by default
-//	printf("setting priority and rest of vars\n");
 	ret->priority = 0;
 	// set timeSlices to 0 by default
 	ret->timeSlices = 0;
@@ -932,7 +901,6 @@ tcb *createTcb(my_pthread_t tid, ucontext_t context, void *(*function)(void*)) {
 		ret->stack = stack;
 	}
 	// return a pointer to the instance
-//	printf("successfully created tcb #%d\n", tid);
 	printf("finished createTcb()!\n");
 	return ret;
 }
@@ -997,13 +965,10 @@ int level_slices(int level) {
 //	printf("entered level_slices!\n");
 	// base case: level 0, give 1 slice
 	if(level == 0) {
-//		printf("entered base case! \n");
-//		printf("finished level_slices()\n");
 		return 1;
 	}
 	// recursive case: return 2 * recursive func
 	else{
-//		printf("entered recusive case!\n");
 		return 2*(level_slices(level - 1));
 	}
 

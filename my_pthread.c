@@ -220,7 +220,24 @@ int my_pthread_create(my_pthread_t *thread, pthread_attr_t * attr, void *(*funct
 /* give CPU pocession to other user level threads voluntarily */
 int my_pthread_yield() {
 	printf("entered my_pthread_yield()!\n");
-//	testMsg();
+	//testMsg();
+	
+	unsigned int otherThreadsExist = 0;
+	
+	//check that there's other threads to yield() to (regardless of priority)
+	int i;
+	for(i = 1; i < MAX_NUM_THREADS; i++){
+		if(tcbList[i] != NULL){
+			otherThreadsExist = 1;
+		}
+	}
+	
+	//if no other threads to yield() to
+	if(!otherThreadsExist){
+		fprintf(stderr, "Cannot yield when no other thread exists\n");
+		return 1;
+	}
+	
 	//set thread to yield, set current_thread to manager, swap contexts.
 	//manager will yield job in stage 1 of maintenance
 	tcbList[(uint) current_thread]->status = THREAD_YIELDED;
@@ -238,18 +255,26 @@ thread waiting on it, if any */
 void my_pthread_exit(void *value_ptr) {
 	printf("entered my_pthread_exit()!\n");
 //	testMsg();
+
+	printf("The value i am passing to the joined thread is: %d\n", *((int *)value_ptr));
+	
 	// create uint version of current thread to reduce casts
     uint current_thread_int = (uint) current_thread;
+	printf("The thread that called exit is: %d\n", current_thread);
 
     // thread that the calling thread is joined to
     my_pthread_t joinedThread = tcbList[current_thread_int]->waitingThread;
-
+	printf("The thread that is waiting on us is: %d\n",(unsigned int)joinedThread);
+	
     // if the thread has another thread waiting on it (joined this thread),
     // set its valuePtr member accordingly
     if((uint)joinedThread != MAX_NUM_THREADS + 2) {
     	tcbList[joinedThread]->valuePtr = value_ptr;
+		printf("This means it knows a thread is waiting on us\n");
     }
     
+	printf("The value in the waiting threads ptr is %d: \n", *((int*)(tcbList[joinedThread]->valuePtr)));
+	
     // swap back to the Manager context
     printf("swapping contexts from thread #%d to Manager\n", current_thread);
     my_pthread_t exiting_thread = current_thread;

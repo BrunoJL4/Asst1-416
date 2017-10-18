@@ -348,7 +348,6 @@ int my_pthread_mutex_lock(my_pthread_mutex_t *mutex) {
 //	testMsg();
 	//If mutex is locked, enter waitQueue and yield
 	//NOTE: yield should set this thread status to BLOCKED
-	printf("mutex->status: %d\n", mutex->status);
 	if (mutex->status == LOCKED) {
 		printf("mutex is LOCKED\n");
 		//Create pnode of current thread
@@ -391,7 +390,7 @@ int my_pthread_mutex_unlock(my_pthread_mutex_t *mutex) {
 //	testMsg();
 	//If mutex is NOT initialized
 	//user did something bad
-	if (&mutex == NULL) {
+	if (mutex == NULL) {
 		return -1;
 	//Elif mutex does not belong to us
 	//we can't unlock it
@@ -403,6 +402,7 @@ int my_pthread_mutex_unlock(my_pthread_mutex_t *mutex) {
 	mutex->status = UNLOCKED;
 	//Check waiting queue, destroy mutex if there is no more use
 	if (mutex->waitQueue == NULL) {
+		printf("finished my_pthread_mutex_unlock()!\n");
 		return 0;
 	}
 	//alert the next available thread & remove it from queue/add back to run queue
@@ -411,7 +411,7 @@ int my_pthread_mutex_unlock(my_pthread_mutex_t *mutex) {
 	//make this thread ready so it can now acquire this lock
 	tcbList[(uint) ptr->tid]->status = THREAD_READY;
 	free(ptr);
-	printf("finished my_pthread_mutex_unlock()\n");
+	printf("finished my_pthread_mutex_unlock()!\n");
 	return 0;
 }
 

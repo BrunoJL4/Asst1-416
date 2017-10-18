@@ -222,18 +222,18 @@ int my_pthread_yield() {
 	printf("entered my_pthread_yield()!\n");
 	//testMsg();
 	
-	unsigned int otherThreadsExist = 0;
+	unsigned int numberOfThreads = 0;
 	
 	//check that there's other threads to yield() to (regardless of priority)
 	int i;
-	for(i = 1; i < MAX_NUM_THREADS; i++){
+	for(i = 0; i < MAX_NUM_THREADS; i++){
 		if(tcbList[i] != NULL){
-			otherThreadsExist = 1;
+			numberOfThreads++;
 		}
 	}
 	
 	//if no other threads to yield() to
-	if(!otherThreadsExist){
+	if(numberOfThreads <= 1{
 		fprintf(stderr, "Cannot yield when no other thread exists\n");
 		return 1;
 	}

@@ -2,13 +2,13 @@
 #include <stdio.h>
 
 /* this function is run by the second thread */
-void inc_x(){
+void * inc_x(){
 
     
     
     int num = 100;
-    void * ptr = (void*)&num;
-    printf("The increment you want to pass to the joined thread is %d\n", ptr);
+    void *ptr = (void*) &num;
+    printf("The increment you want to pass to the joined thread is %d\n", *((int*)ptr));
     
     my_pthread_exit(ptr);
     /* the function must return something - NULL will do */
@@ -21,7 +21,7 @@ int main(){
 
     int x = 0, y = 0;
 
-    void ** ptr = NULL;
+    void **ptr = NULL;
     
     
     /* show the initial values of x and y */
@@ -36,11 +36,6 @@ int main(){
         return 1;
     }
     
-    /* increment y to 100 in the first thread */
-    while(++y < 100);
-
-    printf("y increment finished\n");
-
     /* wait for the second thread to finish */
     if(pthread_join(inc_x_thread, ptr)) {
         fprintf(stderr, "Error joining thread\n");
@@ -48,7 +43,11 @@ int main(){
 
     }
 
-    
+    int* ptr_addr = (int*) *(ptr);
+    int ptr_val = (int) *(ptr_addr);
+
+    printf("value in ptr: %d\n", ptr_val);
+
 
     return 0;
 }

@@ -331,14 +331,13 @@ int my_pthread_join(my_pthread_t thread, void **value_ptr) {
 int my_pthread_mutex_init(my_pthread_mutex_t *mutex, const pthread_mutexattr_t *attr) {
 	printf("entered my_mutex_init()!\n");
 //	testMsg();
-	//Check if mutex is initialized
-	//if so, return
-	//otherwise, initialize mutex
+	//initialize mutex
 	mutex = (my_pthread_mutex_t *) malloc(sizeof(my_pthread_mutex_t));
 	mutex->status = UNLOCKED;
 	mutex->waitQueue = NULL;
 	mutex->ownerID = -1;
 	mutex->attr = attr;
+	printf("mutex->status: %d\n", mutex->status);
 	printf("finished my_mutex_init()\n");
 	return 0;
 }
@@ -349,6 +348,7 @@ int my_pthread_mutex_lock(my_pthread_mutex_t *mutex) {
 //	testMsg();
 	//If mutex is locked, enter waitQueue and yield
 	//NOTE: yield should set this thread status to BLOCKED
+	printf("mutex->status: %d\n", mutex->status);
 	if (mutex->status == LOCKED) {
 		printf("mutex is LOCKED\n");
 		//Create pnode of current thread
@@ -367,13 +367,12 @@ int my_pthread_mutex_lock(my_pthread_mutex_t *mutex) {
 			}
 			ptr->next = new;
 		}
-		printf("done initializing waitqueue\n");
+		printf("mutex no longer locked for thread %d\n", current_thread);
 		//set thread status to BLOCKED and change context
 		my_pthread_t blocked_thread = current_thread;
 		tcbList[(uint) blocked_thread]->status = THREAD_BLOCKED;
 		current_status = THREAD_BLOCKED;
 		//let the manager continue in the run queue
-		printf("swapping back to manager\n");
 		current_thread = MAX_NUM_THREADS + 1;
 		swapcontext(&(tcbList[blocked_thread]->context), &Manager);
 	} 

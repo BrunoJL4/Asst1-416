@@ -233,7 +233,7 @@ int my_pthread_yield() {
 	}
 	
 	//if no other threads to yield() to
-	if(numberOfThreads <= 1{
+	if(numberOfThreads <= 1) {
 		fprintf(stderr, "Cannot yield when no other thread exists\n");
 		return 1;
 	}
@@ -373,6 +373,7 @@ int my_pthread_mutex_lock(my_pthread_mutex_t *mutex) {
 		}
 		//set thread status to BLOCKED and change context
 		tcbList[(uint) current_thread]->status = THREAD_BLOCKED;
+		current_status = THREAD_BLOCKED;
 		//let the manager continue in the run queue
 		current_thread = MAX_NUM_THREADS + 1;
 		setcontext(&Manager);
@@ -481,7 +482,7 @@ int maintenanceHelper() {
 		tcb *currTcb = tcbList[(uint)currId];
 		// if a runQueue thread's status is THREAD_DONE:
 		if(currTcb->status == THREAD_DONE) {
-			printf("runQueue thread's status is THREAD_DONE\n");
+			printf("runQueue thread #%d's status is THREAD_DONE\n", currId);
 			// deallocate the thread's tcb through tcbList
 			free(currTcb);
 			// set tcbList[tid] to NULL
@@ -491,16 +492,10 @@ int maintenanceHelper() {
 			pnode *temp = currPnode;
 			currPnode = currPnode->next;
 			free(temp);
-			// TODO @bruno: add functionality for storing the number of cycles a
-			// thread has waited in the MLPQ to get a chance to run. increase
-			// the thread's priority if it's waited x cycles. we will set the
-			// cycles to 0 once a thread is added to the runQueue, and will
-			// increase the cycles of each THREAD_READY thread by 1 each time
-			// we look through the MLPQ.
 		}
 		// if a runQueue thread's status is THREAD_INTERRUPTED:
 		else if(currTcb->status == THREAD_INTERRUPTED) {
-			printf("runQueue thread's status is THREAD_INTERRUPTED\n");
+			printf("runQueue thread %d's status is THREAD_INTERRUPTED\n", currId);
 			// we insert the thread back into the MLPQ but at one lower
 			// priority level, also changing its priority member.
 			// then change its status to READY.
@@ -511,8 +506,8 @@ int maintenanceHelper() {
 			currTcb->status = THREAD_READY;
 		}
 		// if a runQueue thread is waiting or yielding
-		else if(currTcb->status == THREAD_WAITING || currTcb->status == THREAD_YIELDED) {
-			printf("runQueue thread's status is WAITING or YIELDING\n");
+		else if(currTcb->status == THREAD_WAITING || currTcb->status == THREAD_YIELDED || currTcb->status == THREAD_BLOCKED) {
+			printf("runQueue thread %d's status is: %d\n", currId, currTcb->status);
 			// put the thread into the MLPQ at the same priority level,
 			// so that it can resume in subsequent runs when it's
 			// set to READY as the thread it's waiting on finishes
@@ -523,7 +518,7 @@ int maintenanceHelper() {
 		}
 		// if a runQueue thread's status isn't any of the four above:
 		else{
-			printf("Error! Thread in runQueue found to have invalid status during maintenance cycle.\n");
+			printf("Error! Thread %d in runQueue found to have invalid status during maintenance cycle.\n", currId);
 			return -1;
 		}
 	}
@@ -752,9 +747,6 @@ int runQueueHelper() {
 		printf("Swapping contexts from Manager to thread #%d\n", currId);
 		// update child thread's uc_link to Manager
 		tcbList[currId]->context.uc_link = &Manager;
-		printf("I found the error!\n");
-		printf("Manager context %d\n", &Manager);
-		printf("Swapping to %d\n", &(currTcb->context));
 		swapcontext(&Manager, &(currTcb->context));
 		// if this context resumed and current_status is still THREAD_RUNNING,
 		// then thread ran to completion before being interrupted.
@@ -779,7 +771,11 @@ int runQueueHelper() {
 		// if this context resumed and current status is THREAD_WAITING,
 		else if(current_status == THREAD_WAITING) {
 			// Do nothing here, since thread's status was already set
-			printf("Thread #%d is waiting1\n", currId);
+			printf("Thread #%d is waiting!\n", currId);
+		}
+		else if(current_status == THREAD_BLOCKED) {
+			// Do nothing here, since thread's status was already set.
+			printf("Thread %d is blocked!\n", currId);
 		}
 		// this branch shouldn't occur
 		else {

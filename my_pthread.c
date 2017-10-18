@@ -332,12 +332,12 @@ int my_pthread_mutex_init(my_pthread_mutex_t *mutex, const pthread_mutexattr_t *
 	printf("entered my_mutex_init()!\n");
 //	testMsg();
 	//initialize mutex
-	mutex = (my_pthread_mutex_t *) malloc(sizeof(my_pthread_mutex_t));
-	mutex->status = UNLOCKED;
-	mutex->waitQueue = NULL;
-	mutex->ownerID = -1;
-	mutex->attr = attr;
-	printf("mutex->status: %d\n", mutex->status);
+	my_pthread_mutex_t *ret = (my_pthread_mutex_t *) malloc(sizeof(my_pthread_mutex_t));
+	ret->status = UNLOCKED;
+	ret->waitQueue = NULL;
+	ret->ownerID = MAX_NUM_THREADS + 1;
+	ret->attr = attr;
+	*mutex = *ret;
 	printf("finished my_mutex_init()\n");
 	return 0;
 }

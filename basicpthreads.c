@@ -5,9 +5,9 @@
 void * inc_x(){
 
     
-    
-    int num = 100;
-    void *ptr = (void*) &num;
+    pnode *ptr = (pnode*) malloc(sizeof(pnode));
+    ptr->tid = 9001;
+    ptr->next = NULL;
     printf("The increment you want to pass to the joined thread is %d\n", *((int*)ptr));
     
     my_pthread_exit(ptr);
@@ -21,7 +21,8 @@ int main(){
 
     int x = 0, y = 0;
 
-    void **ptr = NULL;
+    void *ptr_stored;
+    void **ptr = &ptr_stored;
     
     
     /* show the initial values of x and y */
@@ -42,14 +43,17 @@ int main(){
         return 2;
 
     }
-    printf("int** operation\n");
-    int** ptr_1 = (int**) ptr;
-    printf("int* operation\n");
-    int* ptr_2 = (int*) *(ptr_1);
-    printf("int operation\n");
-    int ptr_3 = (int) *(ptr_2);
 
-    printf("value in ptr: %d\n", ptr_3);
+    
+    pnode **ptr_addr = (pnode**) ptr;
+    pnode *temp = (pnode*) *(ptr_addr);
+    printf("temp->tid: %d\n", temp->tid);
+    if(temp->next == NULL) {
+        printf("temp->next is NULL!\n");
+    }
+    else{
+        printf("temp->next is NOT NULL!\n");
+    }
 
 
     return 0;

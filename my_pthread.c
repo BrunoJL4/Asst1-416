@@ -264,7 +264,7 @@ void my_pthread_exit(void *value_ptr) {
     // set its valuePtr member and its status accordingly
     if((uint)joinedThread != MAX_NUM_THREADS + 2) {
     	tcbList[joinedThread]->status = THREAD_YIELDED;
-    	*(tcbList[joinedThread]->valuePtr) = &value_ptr;
+    	*(tcbList[joinedThread]->valuePtr) = value_ptr;
 		printf("This means it knows a thread is waiting on us\n");
     }
     
@@ -311,7 +311,7 @@ int my_pthread_join(my_pthread_t thread, void **value_ptr) {
     // acceses value_ptr.
     printf("Setting valuePtr\n");
 //    printf("status of current thread in tcbList: %d\n", tcbList[current_thread]->status);
-    tcbList[current_thread]->valuePtr = &value_ptr;
+    tcbList[current_thread]->valuePtr = value_ptr;
     printf("swapping contexts from thread #%d to Manager\n", current_thread);
     // swap back to the manager
     my_pthread_t joining_thread = current_thread;

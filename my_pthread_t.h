@@ -84,11 +84,8 @@ typedef struct threadControlBlock {
 	default, or if no threads are waiting on this thread. */
 	my_pthread_t waitingThread;
 
-	/* The value pointer of this thread. It stores the address of
-	the user's input void **value_ptr (&value_ptr). exit() will,
-	upon returning a value to this, set *valuePtr = &exit_val,
-	meaning that value_ptr will reference the address of exit_val.*/
-	void ***valuePtr;
+	/* The value pointer of this thread.*/
+	void **valuePtr;
 
 	/* The number of runQueue cycles the given thread has waited without
 	running. 0 by default, and increases as a thread waits for longer.

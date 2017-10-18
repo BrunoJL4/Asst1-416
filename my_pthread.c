@@ -458,7 +458,7 @@ int maintenanceHelper() {
 	// first part: clearing the run queue, and performing
 	// housekeeping depending on the thread's status
 	pnode *currPnode = runQueue;
-	printf("going into first part loop\n");
+	printf("going into part 1 loop\n");
 	while(currPnode != NULL) {
 		printf("setting variables for current node in runQueue\n");
 		my_pthread_t currId = currPnode->tid;
@@ -482,7 +482,9 @@ int maintenanceHelper() {
 			// we insert the thread back into the MLPQ but at one lower
 			// priority level, also changing its priority member.
 			// then change its status to READY.
-			currTcb->priority ++;
+			if(currTcb->priority < NUM_PRIORITY_LEVELS - 1){
+				currTcb->priority ++;
+			}
 			pnode *temp = currPnode;
 			currPnode = currPnode->next;
 			insertPnodeMLPQ(temp, currTcb->priority);
@@ -505,6 +507,7 @@ int maintenanceHelper() {
 			return -1;
 		}
 	}
+	runQueue = NULL;
 
 	// second part: populating the run queue and allocating time slices.
 	// go through MLPQ, starting at highest priority level and going
@@ -516,6 +519,7 @@ int maintenanceHelper() {
 	int i;
 	printf("going into part 2 loop\n");
 	mlpqPrint();
+	runQueuePrint();
 	for(i = 0; i < NUM_PRIORITY_LEVELS; i++) {
 		// formula for priority levels v. time slices: 2^(level)
 		int numSlices = level_slices(i);
@@ -599,8 +603,9 @@ int maintenanceHelper() {
 	// if so, bump up their priority level and set their age to 0.
 	// this means we add them to the next highest level, increment their
 	// priority by 1, and delink them from this level.
-	printf("checking MLPQ to see if any threads were left over and ready, past P0.\n");
+	printf("going into part 3 loop\n");
 	mlpqPrint();
+	runQueuePrint();
 	for(i = 1; i < NUM_PRIORITY_LEVELS; i++) {
 		pnode *curr = MLPQ[i];
 		pnode *prev = MLPQ[i];

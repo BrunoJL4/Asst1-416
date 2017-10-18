@@ -517,32 +517,24 @@ int maintenanceHelper() {
 	printf("going into part 2 loop\n");
 	mlpqPrint();
 	for(i = 0; i < NUM_PRIORITY_LEVELS; i++) {
-//		printf("current level in part 2 loop: %d\n", i);
 		// formula for priority levels v. time slices: 2^(level)
 		int numSlices = level_slices(i);
 		// if we don't have enough timeSlices left to distribute to any node in
 		// the current level, break (prevents searching further levels)
 		if(numSlices > timeSlicesLeft) {
-//			printf("Ran out of time slices (before entering level.\n");
 			break;
 		}
-//		printf("setting variables to go through queue at level: %d\n",i);
 		// go through this level's queue, if at all applicable.
 		pnode *currPnode = MLPQ[i];
 		pnode *prev = currPnode;
-//		printf("beginning to run through queue\n");
 		while(currPnode != NULL) {
 			// don't search the current level further if not enough
 			// time slices are left.
 			if(numSlices > timeSlicesLeft) {
-//				printf("Ran out of time slices (in a level)!\n");
 				break;
 			}
 			my_pthread_t currId = currPnode->tid;
-//			printf("current pnode's ID: %d\n", currId);
-//			printf("accessing current node's tcbList\n");
 			tcb *currTcb = tcbList[(uint) currId];
-//			printf("checking if current thread's status is THREAD_READY\n");
 			// if the current pnode's thread is ready to run (either marked
 			// as READY, or was YIELDED before...
 			if(currTcb->status == THREAD_READY || currTcb->status == THREAD_YIELDED) {
@@ -552,7 +544,6 @@ int maintenanceHelper() {
 				// delink it for one of two cases:
 				// first case: pnode is first node in queue
 				if(currPnode == MLPQ[i]) {
-//					printf("pnode is first node in queue\n");
 					// set MLPQ[i]'s pointer to the next node
 					MLPQ[i] = MLPQ[i]->next;
 					// navigate to next part so that prev and currPnode
@@ -563,7 +554,6 @@ int maintenanceHelper() {
 				// second case: currPnode isn't first node in level (e.g. is
 				// in the middle or is the last node)
 				else{
-//					printf("pnode isn't first node\n");
 					// delink current node from MLPQ
 					prev->next = currPnode->next;
 					currPnode = currPnode->next;

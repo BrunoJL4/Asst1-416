@@ -395,14 +395,14 @@ int my_pthread_mutex_unlock(my_pthread_mutex_t *mutex) {
 		return -1;
 	//Elif mutex does not belong to us
 	//we can't unlock it
-	} else if (mutex->ownerID != current_thread) {
+	} 
+	else if (mutex->ownerID != current_thread) {
 		return -1;
 	}
 	//otherwise unlock mutex
 	mutex->status = UNLOCKED;
 	//Check waiting queue, destroy mutex if there is no more use
 	if (mutex->waitQueue == NULL) {
-		my_pthread_mutex_destroy(mutex);
 		return 0;
 	}
 	//alert the next available thread & remove it from queue/add back to run queue
@@ -423,7 +423,8 @@ int my_pthread_mutex_destroy(my_pthread_mutex_t *mutex) {
 	if (&mutex == NULL) {
 		return -1;
 	//Elif mutex is locked
-	} else if (mutex->status == LOCKED) {
+	} 
+	else if (mutex->status == LOCKED) {
 		return -1;
 	}	
 	//otherwise, free the memory used

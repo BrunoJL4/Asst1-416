@@ -91,6 +91,9 @@ int current_status;
 are initialized to by default*/
 uint manager_active;
 
+/* Tells us whether the current thread exited. */
+uint current_exited;
+
 /* Status of currently-running thread. */
 enum threadStatus currentStatus;
 
@@ -125,36 +128,15 @@ int my_pthread_create(my_pthread_t *thread, pthread_attr_t * attr, void *(*funct
 		init_manager_thread();
 	}
 	//set information for new child thread's context
-	//thread should be ready to run by default
-//	printf("Setting attributes for new thread!\n");
-	int status = THREAD_READY;
 	my_pthread_t tid = threadsSoFar;
-	// set aside a stack for the user
-	char stack[MEM];
-	// set the stack pointer for the user's context
-	//time slices is 0 by default
-	uint timeSlices = 0;
+//	printf("Setting attributes for new thread!\n");
 	ucontext_t context;
 	//initialize context, fill it in with current
 	//context's information
 	getcontext(&context);
 	// any child context should link back to Manager
 	// set new context's stack to our allocated stack
-	context.uc_stack.ss_sp = stack;
-	// set new context's stack size to size of allocated stack
-	context.uc_stack.ss_size = sizeof(stack);
-	//turns out that functions called through pthread always take 0 or 1 arguments
-	//therefore the functions called by the user must always take some type of struct (void *) 
-	//if they wish to pass multiple args
-//	printf("Setting args for new thread!\n");
-	if (arg == NULL) {
-		printf("No args for new thread!\n");
-		makecontext(&context, (void*)function, 0);
-	} else {
-		printf("One or more args for new thread!\n");
-		makecontext(&context, (void*)function, 1, arg);
-	}
-	//check if we've exceeded max number of threads
+		//check if we've exceeded max number of threads
 	if (threadsSoFar >= MAX_NUM_THREADS) {
 		printf("Exceeded MAX_NUM_THREADS, checking for recyclable TID's\n");
 		//if so, check recyclableQueue, return -1 if there are no available thread ID's
@@ -170,7 +152,7 @@ int my_pthread_create(my_pthread_t *thread, pthread_attr_t * attr, void *(*funct
 		//free the pnode for the recycled ID
 		free(ptr);
 		//make a new TCB from the gathered information
-		tcb *newTcb = createTcb(status, tid, context.uc_stack, context, timeSlices);
+		tcb *newTcb = createTcb(tid, context, function);
 		//change the tcb instance in tcbList[id] to this tcb
 		tcbList[(uint) tid] = newTcb;
 		// insert a pnode containing the ID at Level 0 of MLPQ
@@ -178,12 +160,23 @@ int my_pthread_create(my_pthread_t *thread, pthread_attr_t * attr, void *(*funct
 		insertPnodeMLPQ(node, 0);
 		// increment number of threads so far
 		threadsSoFar ++;
+		// initialize stack properties of context
+		newTcb->context.uc_stack.ss_sp = newTcb->stack;
+		newTcb->context.uc_stack.ss_size = sizeof(newTcb->stack);
+		if (arg == NULL) {
+			printf("No args for new thread!\n");
+			makecontext(&(newTcb->context), (void*)function, 0);
+		} 
+		else {
+			printf("One or more args for new thread!\n");
+			makecontext(&(newTcb->context), (void*)function, 1, arg);
+		}
 		*thread = tid;
 		return 0;
 	}
 	// if still using new ID's, just use threadsSoFar as the index and increment it
 //	printf("Creating newTcb for new thread #%d\n", tid);
-	tcb *newTcb = createTcb(status, tid, context.uc_stack, context, timeSlices);
+	tcb *newTcb = createTcb(tid, context, function);
 	// add the new tcb to the tcbList at the cell corresponding to its ID
 	printf("modifying tcbList with new thread's tcb!\n");
 	tcbList[tid] = newTcb;
@@ -195,6 +188,17 @@ int my_pthread_create(my_pthread_t *thread, pthread_attr_t * attr, void *(*funct
 	insertPnodeMLPQ(node, 0);
 	// we've added another thread, so increase this
 	threadsSoFar ++;
+	// initialize stack properties of context
+	newTcb->context.uc_stack.ss_sp = newTcb->stack;
+	newTcb->context.uc_stack.ss_size = sizeof(newTcb->stack);
+	if (arg == NULL) {
+		printf("No args for new thread!\n");
+		makecontext(&(newTcb->context), (void*)function, 0);
+	} 
+	else {
+		printf("One or more args for new thread!\n");
+		makecontext(&(newTcb->context), (void*)function, 1, arg);
+	}
 	// if we've just initialized the manager thread, swap to it because
 	// we're in the Main context and need to give the Manager control
 	if(initializingManager == 1) {
@@ -264,8 +268,9 @@ void my_pthread_exit(void *value_ptr) {
     // set its valuePtr member and its status accordingly
     if((uint)joinedThread != MAX_NUM_THREADS + 2) {
     	tcbList[joinedThread]->status = THREAD_YIELDED;
-    	*(tcbList[joinedThread]->valuePtr) = value_ptr;
-		printf("This means it knows a thread is waiting on us\n");
+    	if(tcbList[joinedThread]->valuePtr != NULL) {
+    		*(tcbList[joinedThread]->valuePtr) = value_ptr;
+    	}
     }
     
 //	printf("The value in the waiting threads ptr is %d: \n", *((int*)(tcbList[joinedThread]->valuePtr)));
@@ -274,6 +279,7 @@ void my_pthread_exit(void *value_ptr) {
     printf("swapping contexts from thread #%d to Manager\n", current_thread);
     my_pthread_t exiting_thread = current_thread;
     current_thread = MAX_NUM_THREADS + 1;
+    current_exited = 1;
     swapcontext(&(tcbList[exiting_thread]->context), &Manager);
     printf("finished my_pthread_exit()!\n");
 }
@@ -737,6 +743,8 @@ int runQueueHelper() {
 
 		// swap contexts with this child thread.
 		current_thread = currId;
+		// set current_exited to 0;
+		current_exited = 0;
 		printf("Swapping contexts from Manager to thread #%d\n", currId);
 		// update child thread's uc_link to Manager
 		tcbList[currId]->context.uc_link = &Manager;
@@ -749,6 +757,11 @@ int runQueueHelper() {
 			timer.it_value.tv_sec = 0;
 			timer.it_value.tv_usec = 0;
 			currTcb->status = THREAD_DONE;
+			if(current_exited == 0) {
+				current_thread = tcbList[currId]->tid;
+				getcontext(&Manager);
+				my_pthread_exit(NULL);
+			}
 		}
 		// if this context resumed and current_status is THREAD_INTERRUPTED,
 		// then the signal handler interrupted the child thread, which
@@ -818,8 +831,6 @@ int init_manager_thread() {
 	printf("getting main context!\n");
 	ucontext_t Main;
 	getcontext(&Main);
-	// Don't point its uc_link at Manager. Manager will do that
-	// for it.
 	//now add pnode with Main thread's ID (0) to MLPQ
 	printf("creating mainNode with TID 0\n");
 	pnode *mainNode = createPnode(0);
@@ -827,7 +838,7 @@ int init_manager_thread() {
 	insertPnodeMLPQ(mainNode, 0);
 	// initialize tcb for main
 	printf("initializing tcb for main\n");
-	tcb *newTcb = createTcb(THREAD_READY, 0, Main.uc_stack, Main, 0);
+	tcb *newTcb = createTcb(0, Main, NULL);
 //	printf("setting tcbList[0] to main's tcb\n");
 	tcbList[0] = newTcb;
 	threadsSoFar = 1;
@@ -861,7 +872,7 @@ int init_manager_thread() {
 }
 
 
-tcb *createTcb(int status, my_pthread_t tid, stack_t stack, ucontext_t context, uint timeSlizes) {
+tcb *createTcb(my_pthread_t tid, ucontext_t context, void *(*function)(void*)) {
 	printf("entered createTcb()!\n");
 //	testMsg();
 	printf("input tid: %d\n", tid);
@@ -870,22 +881,56 @@ tcb *createTcb(int status, my_pthread_t tid, stack_t stack, ucontext_t context, 
 	tcb *ret = (tcb*) malloc(sizeof(tcb));
 	// set members to inputs
 //	printf("setting status\n");
-	ret->status = status;
+	ret->status = THREAD_READY;
 //	printf("setting tid\n");
 	ret->tid = tid;
-//	printf("setting stack\n");
-	ret->stack = stack;
 //	printf("setting context for tcb\n");
 	ret->context = context;
 	// set priority to 0 by default
 //	printf("setting priority and rest of vars\n");
 	ret->priority = 0;
+	// set timeSlices to 0 by default
+	ret->timeSlices = 0;
 	// waitingThread is -1 by default
 	ret->waitingThread = MAX_NUM_THREADS + 2;
 	// valuePtr is NULL by default
 	ret->valuePtr = NULL;
 	// cyclesWaited is 0 by default
 	ret->cyclesWaited = 0;
+	// check tcbList to see if function is present as a member in
+	// any of the tcb's. if it is, that means a stack has already
+	// been allocated for that function, and we use that one.
+	// only do so if function != NULL, because if it is, that means
+	// we're initializing Main
+	if(function != NULL) {
+		ret->function = function;
+		int functionPresent = 0;
+		int i;
+		for(i = 0; i < MAX_NUM_THREADS; i++) {
+			if(tcbList[i] != NULL) {
+				if(tcbList[i]->function == function) {
+					functionPresent = 1;
+					break;
+				}
+			}
+		}
+		// if new function, use newly-allocated stack
+		if(functionPresent == 0) {
+			char stack[MEM];
+			ret->stack = stack;
+
+		}
+		// else, use stack of tcb containing already-used function
+		else {
+			printf("Using thread %d's stack for thread %d\n", i, tid);
+			ret->stack = tcbList[i]->stack;
+		}	
+	}
+	// if Main
+	else {
+		char stack[MEM];
+		ret->stack = stack;
+	}
 	// return a pointer to the instance
 //	printf("successfully created tcb #%d\n", tid);
 	printf("finished createTcb()!\n");

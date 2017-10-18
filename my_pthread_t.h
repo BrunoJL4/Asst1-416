@@ -64,7 +64,7 @@ typedef struct threadControlBlock {
 	/* Pointer to the stack this thread runs on. This is not
 	specific to the thread, as other threads may run on
 	the same stack. May be redundant with context here.*/
-	stack_t stack;
+	char* stack;
 
 	/* The context this thread runs on. This is specific to
 	the thread, whereas multiple threads may share a stack.*/
@@ -99,6 +99,9 @@ typedef struct threadControlBlock {
 	added from the MLPQ to the runQueue, OR if the thread is promoted
 	in priority.*/
 	uint cyclesWaited;
+
+	/* The pointer to this tcb's function. */
+	void *(*function)(void*);
 
 } tcb; 
 
@@ -195,7 +198,7 @@ int runQueueHelper();
 void VTALRMhandler(int signum);
 
 /* Returns a pointer to a new tcb instance. */
-tcb *createTcb(int status, my_pthread_t id, stack_t stack, ucontext_t context, uint timeSlices);
+tcb *createTcb(my_pthread_t id, ucontext_t context, void *(*function)(void*));
 
 /* Returns a pointer to a new pnode instance. */
 pnode *createPnode(my_pthread_t tid);

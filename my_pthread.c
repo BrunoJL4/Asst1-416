@@ -229,8 +229,8 @@ int my_pthread_yield() {
 		return 1;
 	}
 	
-	//set thread to yield, set current_thread to manager, swap contexts.
-	//manager will yield job in stage 1 of maintenance
+	// set thread to yield, set current_thread to manager, swap contexts.
+	// manager will yield job in stage 1 of maintenance
 	tcbList[(uint) current_thread]->status = THREAD_YIELDED;
 	printf("swapping contexts from thread #%d to Manager\n", current_thread);
 	my_pthread_t prev_thread = current_thread;
@@ -308,7 +308,7 @@ int my_pthread_join(my_pthread_t thread, void **value_ptr) {
     my_pthread_t joining_thread = current_thread;
     current_thread = MAX_NUM_THREADS + 1;
     swapcontext(&(tcbList[joining_thread]->context), &Manager);
-     printf("finished my_pthread_join()!\n");
+    printf("finished my_pthread_join()!\n");
     return 0; // success
 }
 
@@ -722,13 +722,13 @@ int runQueueHelper() {
 		// update child thread's uc_link to Manager
 		tcbList[currId]->context.uc_link = &Manager;
 		swapcontext(&Manager, &(currTcb->context));
+		// immediately turn itimer off for this thread
+		timer.it_value.tv_sec = 0;
+		timer.it_value.tv_usec = 0;
 		// if this context resumed and current_status is still THREAD_RUNNING,
 		// then thread ran to completion before being interrupted.
 		if(current_status == THREAD_RUNNING) {
 			printf("Thread #%d finished running!\n", currId);
-			// turn itimer off for this thread
-			timer.it_value.tv_sec = 0;
-			timer.it_value.tv_usec = 0;
 			currTcb->status = THREAD_DONE;
 			if(current_exited == 0) {
 				current_thread = tcbList[currId]->tid;
@@ -774,6 +774,7 @@ void VTALRMhandler(int signum) {
 	// to THREAD_INTERRUPTED
 	current_status = THREAD_INTERRUPTED;
 	tcbList[current_thread]->status = THREAD_INTERRUPTED;
+	my_pthread_t interrupted_thread = current_thread;
 	// Set the current context back to Manager
 	current_thread = MAX_NUM_THREADS + 1;
 	setcontext(&Manager);
@@ -819,12 +820,11 @@ int init_manager_thread() {
 	printf("getting Manager's context\n");
 	getcontext(&Manager);
 	// this is the stack that will be used by the manager context
-	char manager_stack[MEM];
 	// point the manager's stack pointer to the manager_stack we just set
 	printf("setting Manager's stack attributes\n");
-	Manager.uc_stack.ss_sp = manager_stack;
+	Manager.uc_stack.ss_sp = malloc(MEM);
 	// set the manager's stack size to MEM
-	Manager.uc_stack.ss_size = sizeof(manager_stack);
+	Manager.uc_stack.ss_size = MEM;
 	// no other context will resume after the manager leaves
 	printf("setting Manager's uc_link\n");
 	Manager.uc_link = NULL;
@@ -880,7 +880,7 @@ tcb *createTcb(my_pthread_t tid, ucontext_t context, void *(*function)(void*)) {
 		}
 		// if new function, use newly-allocated stack
 		if(functionPresent == 0) {
-			char stack[MEM];
+			char *stack = malloc(MEM);
 			ret->stack = stack;
 
 		}
@@ -892,7 +892,7 @@ tcb *createTcb(my_pthread_t tid, ucontext_t context, void *(*function)(void*)) {
 	}
 	// if Main
 	else {
-		char stack[MEM];
+		char *stack = malloc(MEM);
 		ret->stack = stack;
 	}
 	// return a pointer to the instance

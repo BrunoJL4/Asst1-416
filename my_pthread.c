@@ -317,7 +317,7 @@ int my_pthread_join(my_pthread_t thread, void **value_ptr) {
     // acceses value_ptr.
     printf("Setting valuePtr\n");
 //    printf("status of current thread in tcbList: %d\n", tcbList[current_thread]->status);
-    value_ptr = &(tcbList[(uint) current_thread]->valuePtr);
+    *value_ptr = (tcbList[(uint) current_thread]->valuePtr);
     printf("swapping contexts from thread #%d to Manager\n", current_thread);
     // swap back to the manager
     my_pthread_t joining_thread = current_thread;

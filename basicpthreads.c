@@ -31,22 +31,25 @@ int main(){
     pthread_t inc_x_thread;
 
     /* create a second thread which executes inc_x(&x) */
-    if(pthread_create(&inc_x_thread, NULL, inc_x, NULL)) {
+    if(pthread_create(&inc_x_thread, NULL, inc_x, NULL) != 0) {
         fprintf(stderr, "Error creating thread\n");
         return 1;
     }
     
     /* wait for the second thread to finish */
-    if(pthread_join(inc_x_thread, ptr)) {
+    if(pthread_join(inc_x_thread, ptr) != 0) {
         fprintf(stderr, "Error joining thread\n");
         return 2;
 
     }
+    printf("int** operation\n");
+    int** ptr_1 = (int**) ptr;
+    printf("int* operation\n");
+    int* ptr_2 = (int*) *(ptr_1);
+    printf("int operation\n");
+    int ptr_3 = (int) *(ptr_2);
 
-    int* ptr_addr = (int*) *(ptr);
-    int ptr_val = (int) *(ptr_addr);
-
-    printf("value in ptr: %d\n", ptr_val);
+    printf("value in ptr: %d\n", ptr_3);
 
 
     return 0;

@@ -263,7 +263,7 @@ void my_pthread_exit(void *value_ptr) {
     // if the thread has another thread waiting on it (joined this thread),
     // set its valuePtr member and its status accordingly
     if((uint)joinedThread != MAX_NUM_THREADS + 2) {
-    	tcbList[joinedThread]->status = THREAD_READY;
+    	tcbList[joinedThread]->status = THREAD_YIELDED;
     	*(tcbList[joinedThread]->valuePtr) = &value_ptr;
 		printf("This means it knows a thread is waiting on us\n");
     }
@@ -511,7 +511,7 @@ int maintenanceHelper() {
 		}
 		// if a runQueue thread's status isn't any of the four above:
 		else{
-			printf("Error! Thread %d in runQueue found to have invalid status during maintenance cycle.\n", currId);
+			printf("Error! Thread %d in runQueue found to have invalid status during maintenance cycle %d.\n", currId, currTcb->status);
 			return -1;
 		}
 	}
@@ -525,6 +525,7 @@ int maintenanceHelper() {
 	int timeSlicesLeft = 20;
 	int i;
 	printf("going into part 2 loop\n");
+	mlpqPrint();
 	for(i = 0; i < NUM_PRIORITY_LEVELS; i++) {
 //		printf("current level in part 2 loop: %d\n", i);
 		// formula for priority levels v. time slices: 2^(level)
@@ -540,7 +541,6 @@ int maintenanceHelper() {
 		pnode *currPnode = MLPQ[i];
 		pnode *prev = currPnode;
 //		printf("beginning to run through queue\n");
-		mlpqPrint();
 		while(currPnode != NULL) {
 			// don't search the current level further if not enough
 			// time slices are left.
@@ -553,8 +553,9 @@ int maintenanceHelper() {
 //			printf("accessing current node's tcbList\n");
 			tcb *currTcb = tcbList[(uint) currId];
 //			printf("checking if current thread's status is THREAD_READY\n");
-			// if the current pnode's thread is ready to run:
-			if(currTcb->status == THREAD_READY) {
+			// if the current pnode's thread is ready to run (either marked
+			// as READY, or was YIELDED before...
+			if(currTcb->status == THREAD_READY || currTcb->status == THREAD_YIELDED) {
 //				printf("current thread's status is THREAD_READY\n");
 				// make a temp ptr to the current pnode.
 				pnode *tempCurr = currPnode;
@@ -626,6 +627,7 @@ int maintenanceHelper() {
 	// this means we add them to the next highest level, increment their
 	// priority by 1, and delink them from this level.
 	printf("checking MLPQ to see if any threads were left over and ready, past P0.\n");
+	mlpqPrint();
 	for(i = 1; i < NUM_PRIORITY_LEVELS; i++) {
 		pnode *curr = MLPQ[i];
 		pnode *prev = MLPQ[i];
@@ -735,7 +737,6 @@ int runQueueHelper() {
 		setitimer(ITIMER_VIRTUAL, &timer, NULL);
 
 		// swap contexts with this child thread.
-		current_exited = 0;
 		current_thread = currId;
 		printf("Swapping contexts from Manager to thread #%d\n", currId);
 		// update child thread's uc_link to Manager
@@ -775,6 +776,7 @@ int runQueueHelper() {
 		currPnode = currPnode->next;
 	}
 	printf("finished runQueueHelper()\n");
+	mlpqPrint();
 	return 0;
 }
 
@@ -812,8 +814,6 @@ int init_manager_thread() {
 	for(i = 0; i < MAX_NUM_THREADS; i++) {
 		tcbList[i] = NULL;
 	}
-	// initialize current_exited to 0
-	current_exited = 0;
 	// Initializing current (Main) context
 	printf("getting main context!\n");
 	ucontext_t Main;
@@ -924,6 +924,9 @@ int insertPnodeMLPQ(pnode *input, uint level) {
 		printf("Inserting input node as head!\n");
 		// insert input as head
 		MLPQ[level] = input;
+		// fix: make sure we're not keeping ->next values
+		// from the runQueue when applicable
+		input->next = NULL;
 		return 0;
 	}
 	// second scenario: MLPQ[level] has one or more nodes.

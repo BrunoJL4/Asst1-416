@@ -881,7 +881,6 @@ int insertPnodeMLPQ(pnode *input, uint level) {
 	// error-checking done, begin insertion.
 	// first scenario: MLPQ[level] is NULL.
 	if(MLPQ[level] == NULL) {
-		printf("Inserting input node as head!\n");
 		// insert input as head
 		MLPQ[level] = input;
 		// fix: make sure we're not keeping ->next values

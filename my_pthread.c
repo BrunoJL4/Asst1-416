@@ -157,6 +157,7 @@ int my_pthread_create(my_pthread_t *thread, pthread_attr_t * attr, void *(*funct
 		// initialize stack properties of context
 		newTcb->context.uc_stack.ss_sp = newTcb->stack;
 		newTcb->context.uc_stack.ss_size = sizeof(newTcb->stack);
+		newTcb->context.uc_link = &Manager;
 		if (arg == NULL) {
 			makecontext(&(newTcb->context), (void*)function, 0);
 		} 
@@ -179,6 +180,7 @@ int my_pthread_create(my_pthread_t *thread, pthread_attr_t * attr, void *(*funct
 	// initialize stack properties of context
 	newTcb->context.uc_stack.ss_sp = newTcb->stack;
 	newTcb->context.uc_stack.ss_size = sizeof(newTcb->stack);
+	newTcb->context.uc_link = &Manager;
 	if (arg == NULL) {
 		makecontext(&(newTcb->context), (void*)function, 0);
 	} 
@@ -687,7 +689,7 @@ int runQueueHelper() {
 		// set current_exited to 0;
 		current_exited = 0;
 		// update child thread's uc_link to Manager
-		tcbList[currId]->context.uc_link = &Manager;
+		//tcbList[currId]->context.uc_link = &Manager;
 		swapcontext(&Manager, &(currTcb->context));
 		printf("resuming thread #%d: runQueueHelper()\n", current_thread);
 		// immediately turn itimer off for this thread

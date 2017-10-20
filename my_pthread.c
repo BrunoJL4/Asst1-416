@@ -258,12 +258,12 @@ void my_pthread_exit(void *value_ptr) {
     }
     	
     // swap back to the Manager context
-    printf("pausing thread #%d: my_pthread_exit()\n", current_thread);
-    my_pthread_t exiting_thread = current_thread;
-    current_thread = MAX_NUM_THREADS + 1;
+//    printf("pausing thread #%d: my_pthread_exit()\n", current_thread);
+//    my_pthread_t exiting_thread = current_thread;
+//    current_thread = MAX_NUM_THREADS + 1;
     current_exited = 1;
-    swapcontext(&(tcbList[exiting_thread]->context), &Manager);
-	printf("resuming thread #%d: my_pthread_exit()\n", current_thread);
+//    swapcontext(&(tcbList[exiting_thread]->context), &Manager);
+//    printf("resuming thread #%d: my_pthread_exit()\n", current_thread);
     printf("finished my_pthread_exit()!\n");
 }
 
@@ -451,7 +451,7 @@ int maintenanceHelper() {
 		if(currTcb->status == THREAD_DONE) {
 			printf("runQueue thread #%d's status is THREAD_DONE\n", currId);
 			// deallocate the thread's tcb through tcbList
-			free(currTcb);
+//			free(currTcb);
 			// set tcbList[tid] to NULL
 			tcbList[(uint)currId] = NULL;
 			// then deallocate its pnode in the run queue while

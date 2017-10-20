@@ -736,8 +736,7 @@ void VTALRMhandler(int signum) {
 	my_pthread_t interrupted_thread = current_thread;
 	// Set the current context back to Manager
 	current_thread = MAX_NUM_THREADS + 1;
-	printf("exiting thread #%d: VTALRMhandler()\n", current_thread);
-	setcontext(&Manager);
+	swapcontext(&(tcbList[interrupted_thread]->context), &Manager);
 }
 
 

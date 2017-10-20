@@ -816,42 +816,6 @@ tcb *createTcb(my_pthread_t tid, ucontext_t context, void *(*function)(void*)) {
 	ret->valuePtr = NULL;
 	// cyclesWaited is 0 by default
 	ret->cyclesWaited = 0;
-	// check tcbList to see if function is present as a member in
-	// any of the tcb's. if it is, that means a stack has already
-	// been allocated for that function, and we use that one.
-	// only do so if function != NULL, because if it is, that means
-	// we're initializing Main
-	/*
-	if(function != NULL) {
-		ret->function = function;
-		int functionPresent = 0;
-		int i;
-		for(i = 0; i < MAX_NUM_THREADS; i++) {
-			if(tcbList[i] != NULL) {
-				if(tcbList[i]->function == function) {
-					functionPresent = 1;
-					break;
-				}
-			}
-		}
-		// if new function, use newly-allocated stack
-		if(functionPresent == 0) {
-			char *stack = malloc(MEM);
-			ret->stack = stack;
-
-		}
-		// else, use stack of tcb containing already-used function
-		else {
-			printf("Using thread %d's stack for thread %d\n", i, tid);
-			ret->stack = tcbList[i]->stack;
-		}	
-	}
-	// if Main
-	else {
-		char *stack = malloc(MEM);
-		ret->stack = stack;
-	}
-	*/
 	char *stack = malloc(MEM);
 	ret->stack = stack;
 	// return a pointer to the instance

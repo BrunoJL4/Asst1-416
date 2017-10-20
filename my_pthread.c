@@ -154,9 +154,6 @@ int my_pthread_create(my_pthread_t *thread, pthread_attr_t * attr, void *(*funct
 		insertPnodeMLPQ(node, 0);
 		// increment number of threads so far
 		threadsSoFar ++;
-		// initialize stack properties of context
-		newTcb->context.uc_stack.ss_sp = newTcb->stack;
-		newTcb->context.uc_stack.ss_size = sizeof(newTcb->stack);
 		newTcb->context.uc_link = &Manager;
 		if (arg == NULL) {
 			makecontext(&(newTcb->context), (void*)function, 0);
@@ -177,9 +174,6 @@ int my_pthread_create(my_pthread_t *thread, pthread_attr_t * attr, void *(*funct
 	insertPnodeMLPQ(node, 0);
 	// we've added another thread, so increase this
 	threadsSoFar ++;
-	// initialize stack properties of context
-	newTcb->context.uc_stack.ss_sp = newTcb->stack;
-	newTcb->context.uc_stack.ss_size = sizeof(newTcb->stack);
 	newTcb->context.uc_link = &Manager;
 	if (arg == NULL) {
 		makecontext(&(newTcb->context), (void*)function, 0);
@@ -816,6 +810,9 @@ tcb *createTcb(my_pthread_t tid, ucontext_t context, void *(*function)(void*)) {
 	// cyclesWaited is 0 by default
 	ret->cyclesWaited = 0;
 	char *stack = malloc(MEM);
+	// initialize stack properties of context
+	ret->context.uc_stack.ss_sp = stack;
+	ret->context.uc_stack.ss_size = MEM;
 	ret->stack = stack;
 	// return a pointer to the instance
 	printf("finished createTcb()!\n");

@@ -113,7 +113,6 @@ struct itimerval timer;
 
 /* create a new thread */
 int my_pthread_create(my_pthread_t *thread, pthread_attr_t * attr, void *(*function)(void*), void * arg) {
-	printf("entered my_pthread_create()!\n");
 	// flag that is 1 if we're initializing the manager thread,
 	// 0 if not. we'll use this at the end of the function to decide
 	// whether or not to swap contexts back to manager (ONLY swap
@@ -135,7 +134,6 @@ int my_pthread_create(my_pthread_t *thread, pthread_attr_t * attr, void *(*funct
 	if (threadsSoFar >= MAX_NUM_THREADS) {
 		//if so, check recyclableQueue, return -1 if there are no available thread ID's
 		if (recyclableQueue == NULL) {
-			printf("No more available thread ID's!\n"); 
 			return -1; 
 		}
 		//remove first available ID from queue
@@ -184,23 +182,19 @@ int my_pthread_create(my_pthread_t *thread, pthread_attr_t * attr, void *(*funct
 	// if we've just initialized the manager thread, swap to it because
 	// we're in the Main context and need to give the Manager control
 	if(initializingManager == 1) {
-		printf("pausing thread #%d: my_pthread_create()\n", current_thread);
 		my_pthread_t main_thread = current_thread;
 		current_thread = MAX_NUM_THREADS + 1;	
 		// update Main's context in the tcbList so that it resumes from here
 		// swap back to Manager
 		swapcontext(&(tcbList[main_thread]->context), &Manager);
-		printf("resuming thread #%d: my_pthread_create()\n", current_thread);
 	}
 	//returns the new thread id on success
 	*thread = tid;
-	printf("finished my_pthread_create()!\n");
 	return 0; 
 }
 
 /* give CPU pocession to other user level threads voluntarily */
 int my_pthread_yield() {
-	printf("entered my_pthread_yield()!\n");
 	
 	unsigned int numberOfThreads = 0;
 	
@@ -214,19 +208,15 @@ int my_pthread_yield() {
 	
 	//if no other threads to yield() to
 	if(numberOfThreads <= 1) {
-		fprintf(stderr, "Cannot yield when no other thread exists\n");
 		return 1;
 	}
 	
 	// set thread to yield, set current_thread to manager, swap contexts.
 	// manager will yield job in stage 1 of maintenance
 	tcbList[(uint) current_thread]->status = THREAD_YIELDED;
-	printf("pausing thread #%d: my_pthread_yield()\n", current_thread);
 	my_pthread_t prev_thread = current_thread;
 	current_thread = MAX_NUM_THREADS + 1;
 	swapcontext(&(tcbList[prev_thread]->context), &Manager);
-	printf("resuming thread #%d: my_pthread_yield()\n", current_thread);
-	printf("finished my_pthread_yield()!\n");
 	return 1;
 
 }
@@ -234,7 +224,6 @@ int my_pthread_yield() {
 /* terminate a thread and fill in the value_ptr of the
 thread waiting on it, if any */
 void my_pthread_exit(void *value_ptr) {
-	printf("entered my_pthread_exit()!\n");
 	
 	current_exited = 1; //explicit exit
 	
@@ -243,7 +232,6 @@ void my_pthread_exit(void *value_ptr) {
 	//printf("(TARGET THREAD | ID = %d): my waiting value is: %d\n", tcbList[current_thread]->tid, tcbList[current_thread]->waitingThread);
 	
 	
-	printf("Waiting Thread tid's should be 66, it is %d\n", waitingThread);
     // if thread was being waited on by another thread, set value_ptr 
     if(waitingThread != MAX_NUM_THREADS + 2) {
     	if(tcbList[waitingThread]->valuePtr != NULL) {
@@ -259,13 +247,11 @@ void my_pthread_exit(void *value_ptr) {
 
 /* wait for thread termination */
 int my_pthread_join(my_pthread_t thread, void **value_ptr) {
-printf("entered my_pthread_join()!\n");
 
 	my_pthread_t targetThread = thread;
 	
     // what if target thread doesn't exist?
     if((tcbList[targetThread]) == NULL){
-        fprintf(stderr, "pthread_join(): Target thread %d does not exist!\n", thread);
         return -1;
     }
   
@@ -281,22 +267,18 @@ printf("entered my_pthread_join()!\n");
 	tcbList[current_thread]->valuePtr = value_ptr;
 	
 	
-	printf("Value of ptr: %p\n", tcbList[current_thread]->valuePtr);
 	
 	//swap back to manager	
 	my_pthread_t tmp = current_thread;
 	current_thread = MAX_NUM_THREADS + 1;
 	swapcontext(&(tcbList[tmp]->context), &Manager);
 	
-	printf("Value of ptr: %p\n", tcbList[current_thread]->valuePtr);
 	
-    printf("finished my_pthread_join()!\n");
     return 0; // success
 }
 
 /* initial the mutex lock */
 int my_pthread_mutex_init(my_pthread_mutex_t *mutex, const pthread_mutexattr_t *attr) {
-	printf("entered my_mutex_init()!\n");
 	//initialize mutex
 	//user already allocated space by declaring the mutex,
 	//we just change its members.
@@ -304,7 +286,6 @@ int my_pthread_mutex_init(my_pthread_mutex_t *mutex, const pthread_mutexattr_t *
 	mutex->waitQueue = NULL;
 	mutex->ownerID = MAX_NUM_THREADS + 1;
 	mutex->attr = attr;
-	printf("finished my_mutex_init()\n");
 	return 0;
 }
 
@@ -314,7 +295,6 @@ int my_pthread_mutex_lock(my_pthread_mutex_t *mutex) {
 	//If mutex is locked, enter waitQueue and yield
 	//NOTE: yield should set this thread status to BLOCKED
 	if (mutex->status == LOCKED) {
-		printf("mutex is LOCKED\n");
 		//Create pnode of current thread
 		pnode *new = malloc(sizeof(pnode));
 		new->tid = current_thread;
@@ -339,7 +319,6 @@ int my_pthread_mutex_lock(my_pthread_mutex_t *mutex) {
 		//let the manager continue in the run queue
 		current_thread = MAX_NUM_THREADS + 1;
 		swapcontext(&(tcbList[blocked_thread]->context), &Manager);
-		printf("resuming thread #%d: my_pthread_mutex_lock()\n", current_thread);
 	} 
 	//continue running after the end of yielding OR did not have to yield
 	//Set mutex value to locked
@@ -382,7 +361,6 @@ int my_pthread_mutex_unlock(my_pthread_mutex_t *mutex) {
 
 /* destroy the mutex */
 int my_pthread_mutex_destroy(my_pthread_mutex_t *mutex) {
-	printf("entered my_pthread_mutex_destroy()!\n");
 	//If mutex is NOT initialized
 	if (&mutex == NULL) {
 		return -1;
@@ -393,7 +371,6 @@ int my_pthread_mutex_destroy(my_pthread_mutex_t *mutex) {
 	}	
 	//can't free memory used...
 		
-	printf("exiting my_pthread_mutex_destroy()!\n");
 	return 0;
 }
 
@@ -403,22 +380,18 @@ int my_pthread_mutex_destroy(my_pthread_mutex_t *mutex) {
 /* Carries out the manager thread responsibilities.
 Returns 0 on failure, 1 on success. */
 int my_pthread_manager() {
-	printf("entered my_pthread_manager()!\n");
 	// check if manager is still considered "active"
 	while(manager_active == 1) {
 		// perform maintenance cycle
 		if(maintenanceHelper() != 0) {
-			printf("Error in maintenanceHelper!\n");
 			return -1;
 		}
 		// perform run queue functions
 		if(runQueueHelper() != 0) {
-			printf("Error in runQueueHelper!\n");
 			return -1;
 		}
 	}
 	// We only reach this point when maintenanceHelper()
-	printf("Returning from manager thread.\n");
 	// has set manager_active to 0. Leave the function.
 	return 0;
 }
@@ -428,7 +401,6 @@ int my_pthread_manager() {
 the manager thread's maintenance cycle. Returns 0 on failure,
 1 on success.*/
 int maintenanceHelper() {
-	printf("entered maintenanceHelper()!\n");
 	// first part: clearing the run queue, and performing
 	// housekeeping depending on the thread's status
 	pnode *currPnode = runQueue;
@@ -437,7 +409,6 @@ int maintenanceHelper() {
 		tcb *currTcb = tcbList[(uint)currId];
 		// if a runQueue thread's status is THREAD_DONE:
 		if(currTcb->status == THREAD_DONE) {
-			printf("runQueue thread #%d's status is THREAD_DONE\n", currId);
 			// deallocate the current thread's stack
 			free(currTcb->stack);
 			// deallocate the thread's tcb through tcbList
@@ -452,7 +423,6 @@ int maintenanceHelper() {
 		}
 		// if a runQueue thread's status is THREAD_INTERRUPTED:
 		else if(currTcb->status == THREAD_INTERRUPTED) {
-			printf("runQueue thread %d's status is THREAD_INTERRUPTED\n", currId);
 			// we insert the thread back into the MLPQ but at one lower
 			// priority level, also changing its priority member.
 			// then change its status to READY.
@@ -466,7 +436,6 @@ int maintenanceHelper() {
 		}
 		// if a runQueue thread is waiting or yielding
 		else if(currTcb->status == THREAD_WAITING || currTcb->status == THREAD_YIELDED || currTcb->status == THREAD_BLOCKED) {
-			printf("runQueue thread %d's status is: %d\n", currId, currTcb->status);
 			// put the thread into the MLPQ at the same priority level,
 			// so that it can resume in subsequent runs when it's
 			// set to READY as the thread it's waiting on finishes
@@ -477,7 +446,6 @@ int maintenanceHelper() {
 		}
 		// if a runQueue thread's status isn't any of the four above:
 		else{
-			printf("Error! Thread %d in runQueue found to have invalid status during maintenance cycle %d.\n", currId, currTcb->status);
 			return -1;
 		}
 	}
@@ -619,7 +587,6 @@ int maintenanceHelper() {
 			}
 		}
 		if(mlpq_empty == 1) {
-			printf("MLPQ and runQueue were found as empty in maintenanceHelper()!\n");
 			manager_active = 0;
 		}
 	}
@@ -635,14 +602,12 @@ int maintenanceHelper() {
 the work for the manager thread's run queue. Returns 0 on failure,
 1 on success. */
 int runQueueHelper() {
-	printf("entered runQueueHelper()!\n");
 	// first, check and see if the manager thread is still active after
 	// the last round of maintenance
 	if(manager_active == 0) {
 		return 0;
 	}
 	if(runQueue == NULL) {
-		printf("Error! Went into runQueueHelper() without a populated runQueue. There must be an issue in the MLPQ not resolved in maintenanceHelper().\n");
 		return -1;
 	}
 
@@ -661,7 +626,6 @@ int runQueueHelper() {
 	while(currPnode != NULL) {
 		my_pthread_t currId = currPnode->tid;
 		tcb *currTcb = tcbList[(uint) currId];
-		printf("in runQueue at thread: %d\n", currId);
 		// grab number of time slices allowed for the thread
 		int slicesLeft = currTcb->timeSlices;
 		// change status of current thread to running
@@ -674,21 +638,18 @@ int runQueueHelper() {
 		setitimer(ITIMER_VIRTUAL, &timer, NULL);
 
 		// swap contexts with this child thread.
-		printf("pausing thread #%d: runQueueHelper()\n", current_thread);
 		current_thread = currId;
 		// set current_exited to 0;
 		current_exited = 0;
 		// update child thread's uc_link to Manager
 		//tcbList[currId]->context.uc_link = &Manager;
 		swapcontext(&Manager, &(currTcb->context));
-		printf("resuming thread #%d: runQueueHelper()\n", current_thread);
 		// immediately turn itimer off for this thread
 		timer.it_value.tv_sec = 0;
 		timer.it_value.tv_usec = 0;
 		// if this context resumed and current_status is still THREAD_RUNNING,
 		// then thread ran to completion before being interrupted.
 		if(current_status == THREAD_RUNNING) {
-			printf("Thread #%d finished running!\n", currId);
 			currTcb->status = THREAD_DONE;
 			if(current_exited == 0) {
 				//current_thread = tcbList[currId]->tid;
@@ -701,26 +662,21 @@ int runQueueHelper() {
 		// didn't get to run to completion.
 		else if(current_status == THREAD_INTERRUPTED){
 			// Do nothing here, since thread's status was already set
-			printf("Thread #%d was interrupted!\n", currId);
 		}
 		// if this context resumed and current status is THREAD_WAITING,
 		else if(current_status == THREAD_WAITING) {
 			// Do nothing here, since thread's status was already set
-			printf("Thread #%d is waiting!\n", currId);
 		}
 		else if(current_status == THREAD_BLOCKED) {
 			// Do nothing here, since thread's status was already set.
-			printf("Thread %d is blocked!\n", currId);
 		}
 		// this branch shouldn't occur
 		else {
-			printf("Error! Thread %d in runQueue had non-valid status.\n", currId);
 			return -1;
 		}
 		// go to the next node in the runQueue
 		currPnode = currPnode->next;
 	}
-	printf("finished runQueueHelper()\n");
 	return 0;
 }
 
@@ -741,7 +697,6 @@ void VTALRMhandler(int signum) {
 
 
 int init_manager_thread() {
-	printf("entered init_manager_thread()!\n");
 	// initialize global variables before adding Main's thread
 	// to the manager
 	MLPQ = malloc(NUM_PRIORITY_LEVELS * (sizeof(pnode)));
@@ -785,13 +740,11 @@ int init_manager_thread() {
 	memset(&sa, 0, sizeof(sa));
 	// install VTALRMhandler as the signal handler for SIGVTALRM
 	sa.sa_handler = &VTALRMhandler;
-	printf("finished init_manager_thread()\n");
 	return 0;
 }
 
 
 tcb *createTcb(my_pthread_t tid, ucontext_t context, void *(*function)(void*)) {
-	printf("entered createTcb()!\n");
 	// allocate memory for tcb instance
 	tcb *ret = malloc(sizeof(tcb));
 	// set members to inputs
@@ -814,32 +767,25 @@ tcb *createTcb(my_pthread_t tid, ucontext_t context, void *(*function)(void*)) {
 	ret->context.uc_stack.ss_size = MEM;
 	ret->stack = stack;
 	// return a pointer to the instance
-	printf("finished createTcb()!\n");
 	return ret;
 }
 
 
 pnode *createPnode(my_pthread_t tid) {
-	printf("entered createPnode()!\n");
 	pnode *ret = malloc(sizeof(pnode));
 	ret->tid = tid;
 	ret->next = NULL;
-	printf("finished createPnode()\n");
 	return ret;
 }
 
 int insertPnodeMLPQ(pnode *input, uint level) {
-	printf("entered insertPnodeMLPQ()!\n");
 	if(MLPQ == NULL) {
-		printf("Error, MLPQ is NULL!\n");
 		return -1;
 	}
 	if(input == NULL) {
-		printf("Error, input is NULL!\n");
 		return -1;
 	}
 	if(level > NUM_PRIORITY_LEVELS) {
-		printf("Error, level > NUM_PRIORITY_LEVELS!\n");
 		return -1;
 	}
 	// error-checking done, begin insertion.
@@ -863,7 +809,6 @@ int insertPnodeMLPQ(pnode *input, uint level) {
 	// input->next is set to NULL (in case we inserted a thread
 	// from the runQueue)
 	input->next = NULL;
-	printf("finished insertPnodeMLPQ()\n");
 	return 0;
 }
 

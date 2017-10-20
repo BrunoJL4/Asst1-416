@@ -25,7 +25,7 @@ The initialization function for building the tcb will initialize
 the MLPQ to an array of an allocated length equal to the number
 of priority levels. 5 levels = 5 cells in the array.
 */
-pnode *MLPQ[NUM_PRIORITY_LEVELS];
+pnode **MLPQ;
 
 
 
@@ -38,7 +38,7 @@ initialized by the manager thread, but otherwise should be treated
 as an array of pointers.
 
 */
-tcb *tcbList[MAX_NUM_THREADS];
+tcb ** tcbList;
 
 
 /* This is the Run Queue.
@@ -304,7 +304,7 @@ printf("entered my_pthread_join()!\n");
 int my_pthread_mutex_init(my_pthread_mutex_t *mutex, const pthread_mutexattr_t *attr) {
 	printf("entered my_mutex_init()!\n");
 	//initialize mutex
-	my_pthread_mutex_t *ret = (my_pthread_mutex_t *) malloc(sizeof(my_pthread_mutex_t));
+	my_pthread_mutex_t *ret = malloc(sizeof(my_pthread_mutex_t));
 	ret->status = UNLOCKED;
 	ret->waitQueue = NULL;
 	ret->ownerID = MAX_NUM_THREADS + 1;
@@ -445,8 +445,10 @@ int maintenanceHelper() {
 		// if a runQueue thread's status is THREAD_DONE:
 		if(currTcb->status == THREAD_DONE) {
 			printf("runQueue thread #%d's status is THREAD_DONE\n", currId);
+			// deallocate the current thread's stack
+			free(currTcb->stack);
 			// deallocate the thread's tcb through tcbList
-//			free(currTcb);
+			free(currTcb);
 			// set tcbList[tid] to NULL
 			tcbList[(uint)currId] = NULL;
 			// then deallocate its pnode in the run queue while
@@ -750,6 +752,8 @@ int init_manager_thread() {
 	printf("entered init_manager_thread()!\n");
 	// initialize global variables before adding Main's thread
 	// to the manager
+	MLPQ = malloc(NUM_PRIORITY_LEVELS * (sizeof(pnode)));
+	tcbList = malloc(MAX_NUM_THREADS * (sizeof(tcb)));
 	// we must be inside of Main, so set current_thread to 0.
 	current_thread = 0;
 	int i;
@@ -797,7 +801,7 @@ int init_manager_thread() {
 tcb *createTcb(my_pthread_t tid, ucontext_t context, void *(*function)(void*)) {
 	printf("entered createTcb()!\n");
 	// allocate memory for tcb instance
-	tcb *ret = (tcb*) malloc(sizeof(tcb));
+	tcb *ret = malloc(sizeof(tcb));
 	// set members to inputs
 	ret->status = THREAD_READY;
 	ret->tid = tid;
@@ -858,7 +862,7 @@ tcb *createTcb(my_pthread_t tid, ucontext_t context, void *(*function)(void*)) {
 
 pnode *createPnode(my_pthread_t tid) {
 	printf("entered createPnode()!\n");
-	pnode *ret = (pnode*) malloc(sizeof(pnode));
+	pnode *ret = malloc(sizeof(pnode));
 	ret->tid = tid;
 	ret->next = NULL;
 	printf("finished createPnode()\n");

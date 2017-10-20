@@ -259,10 +259,10 @@ void my_pthread_exit(void *value_ptr) {
     	
     // swap back to the Manager context
 //    printf("pausing thread #%d: my_pthread_exit()\n", current_thread);
-//    my_pthread_t exiting_thread = current_thread;
-//    current_thread = MAX_NUM_THREADS + 1;
+    my_pthread_t exiting_thread = current_thread;
+    current_thread = MAX_NUM_THREADS + 1;
     current_exited = 1;
-//    swapcontext(&(tcbList[exiting_thread]->context), &Manager);
+    swapcontext(&(tcbList[exiting_thread]->context), &Manager);
 //    printf("resuming thread #%d: my_pthread_exit()\n", current_thread);
     printf("finished my_pthread_exit()!\n");
 }
@@ -321,7 +321,7 @@ int my_pthread_mutex_init(my_pthread_mutex_t *mutex, const pthread_mutexattr_t *
 
 /* aquire the mutex lock */
 int my_pthread_mutex_lock(my_pthread_mutex_t *mutex) {
-	printf("entered my_pthread_mutex_lock()!\n");
+//	printf("entered my_pthread_mutex_lock()!\n");
 	//If mutex is locked, enter waitQueue and yield
 	//NOTE: yield should set this thread status to BLOCKED
 	if (mutex->status == LOCKED) {
@@ -343,7 +343,7 @@ int my_pthread_mutex_lock(my_pthread_mutex_t *mutex) {
 			ptr->next = new;
 		}
 		//set thread status to BLOCKED and change context
-		printf("pausing thread #%d: my_pthread_mutex_lock()\n", current_thread);
+//		printf("pausing thread #%d: my_pthread_mutex_lock()\n", current_thread);
 		my_pthread_t blocked_thread = current_thread;
 		tcbList[(uint) blocked_thread]->status = THREAD_BLOCKED;
 		current_status = THREAD_BLOCKED;
@@ -357,13 +357,13 @@ int my_pthread_mutex_lock(my_pthread_mutex_t *mutex) {
 	mutex->status = LOCKED;
 	//Set mutex owner to current thread
 	mutex->ownerID = current_thread;
-	printf("finished my_pthread_mutex_lock()!\n");
+//	printf("finished my_pthread_mutex_lock()!\n");
 	return 0;
 }
 
 /* release the mutex lock */
 int my_pthread_mutex_unlock(my_pthread_mutex_t *mutex) {
-	printf("entered my_pthread_mutex_unlock()!\n");
+//	printf("entered my_pthread_mutex_unlock()!\n");
 	//If mutex is NOT initialized
 	//user did something bad
 	if (mutex == NULL) {
@@ -378,7 +378,7 @@ int my_pthread_mutex_unlock(my_pthread_mutex_t *mutex) {
 	mutex->status = UNLOCKED;
 	//Check waiting queue, destroy mutex if there is no more use
 	if (mutex->waitQueue == NULL) {
-		printf("finished my_pthread_mutex_unlock()!\n");
+//		printf("finished my_pthread_mutex_unlock()!\n");
 		return 0;
 	}
 	//alert the next available thread & remove it from queue/add back to run queue
@@ -387,7 +387,7 @@ int my_pthread_mutex_unlock(my_pthread_mutex_t *mutex) {
 	//make this thread ready so it can now acquire this lock
 	tcbList[(uint) ptr->tid]->status = THREAD_READY;
 	free(ptr);
-	printf("finished my_pthread_mutex_unlock()!\n");
+//	printf("finished my_pthread_mutex_unlock()!\n");
 	return 0;
 }
 
@@ -702,7 +702,6 @@ int runQueueHelper() {
 			currTcb->status = THREAD_DONE;
 			if(current_exited == 0) {
 				current_thread = tcbList[currId]->tid;
-				getcontext(&Manager);
 				my_pthread_exit(NULL);
 			}
 		}
@@ -822,6 +821,7 @@ tcb *createTcb(my_pthread_t tid, ucontext_t context, void *(*function)(void*)) {
 	// been allocated for that function, and we use that one.
 	// only do so if function != NULL, because if it is, that means
 	// we're initializing Main
+	/*
 	if(function != NULL) {
 		ret->function = function;
 		int functionPresent = 0;
@@ -851,6 +851,9 @@ tcb *createTcb(my_pthread_t tid, ucontext_t context, void *(*function)(void*)) {
 		char *stack = malloc(MEM);
 		ret->stack = stack;
 	}
+	*/
+	char *stack = malloc(MEM);
+	ret->stack = stack;
 	// return a pointer to the instance
 	printf("finished createTcb()!\n");
 	return ret;

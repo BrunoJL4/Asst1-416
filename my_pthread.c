@@ -241,66 +241,61 @@ int my_pthread_yield() {
 thread waiting on it, if any */
 void my_pthread_exit(void *value_ptr) {
 	printf("entered my_pthread_exit()!\n");
-
-	// create uint version of current thread to reduce casts
-    uint current_thread_int = (uint) current_thread;
-
-    // thread that the calling thread is joined to
-    my_pthread_t joinedThread = tcbList[current_thread_int]->waitingThread;
 	
-    // if the thread has another thread waiting on it (joined this thread),
-    // set its valuePtr member and its status accordingly
-    if((uint)joinedThread != MAX_NUM_THREADS + 2) {
-    	tcbList[joinedThread]->status = THREAD_YIELDED;
-    	if(tcbList[joinedThread]->valuePtr != NULL) {
-    		*(tcbList[joinedThread]->valuePtr) = value_ptr;
+	current_exited = 1; //explicit exit
+	
+    // thread that the calling thread is joined to
+    my_pthread_t waitingThread = tcbList[current_thread]->waitingThread;
+	//printf("(TARGET THREAD | ID = %d): my waiting value is: %d\n", tcbList[current_thread]->tid, tcbList[current_thread]->waitingThread);
+	
+	
+	printf("Waiting Thread tid's should be 66, it is %d\n", waitingThread);
+    // if thread was being waited on by another thread, set value_ptr 
+    if(waitingThread != MAX_NUM_THREADS + 2) {
+    	if(tcbList[waitingThread]->valuePtr != NULL) {
+    		*(tcbList[waitingThread]->valuePtr) = value_ptr;
     	}
     }
-    	
-    // swap back to the Manager context
-//    printf("pausing thread #%d: my_pthread_exit()\n", current_thread);
-    my_pthread_t exiting_thread = current_thread;
+	
+    //swap back to the Manager context 
     current_thread = MAX_NUM_THREADS + 1;
-    current_exited = 1;
-    swapcontext(&(tcbList[exiting_thread]->context), &Manager);
-//    printf("resuming thread #%d: my_pthread_exit()\n", current_thread);
-    printf("finished my_pthread_exit()!\n");
+    setcontext(&Manager);
 }
 
 
 /* wait for thread termination */
 int my_pthread_join(my_pthread_t thread, void **value_ptr) {
-	printf("entered my_pthread_join()!\n");
-    // create uint version of current thread to reduce casts
-    uint thread_int = (uint) thread;
+printf("entered my_pthread_join()!\n");
 
-    //what if thread doesn't exist?
-    if((tcbList[thread_int]) == NULL){
-        fprintf(stderr, "pthread_join(): Target thread %d does not exist!\n", thread_int);
+	my_pthread_t targetThread = thread;
+	
+    // what if target thread doesn't exist?
+    if((tcbList[targetThread]) == NULL){
+        fprintf(stderr, "pthread_join(): Target thread %d does not exist!\n", thread);
         return -1;
     }
   
-    // set target thread's waitingThread to this thread
-    tcbList[thread_int]->waitingThread = current_thread;
-
-    // set this thread's status to THREAD_WAITING
-    tcbList[(uint) current_thread]->status = THREAD_WAITING;
-    // set global flag for current status to THREAD_WAITING so the
-    // runQueueHelper() knows.
-    current_status = THREAD_WAITING;
-
-    // set the value_ptr to point to this thread's valuePtr, so that
-    // the caller has access to the value. trying to access the
-    // target thread's valuePtr might be undefined because it could
-    // have been terminated by the manager thread before the user
-    // acceses value_ptr.
-    tcbList[current_thread]->valuePtr = value_ptr;
-    printf("pausing thread #%d: my_pthread_join()\n", current_thread);
-    // swap back to the manager
-    my_pthread_t joining_thread = current_thread;
-    current_thread = MAX_NUM_THREADS + 1;
-    swapcontext(&(tcbList[joining_thread]->context), &Manager);
-	printf("resuming thread #%d: my_pthread_join()\n", current_thread);
+    // set target thread's waitingThread to this thread.
+	// target thread will now be able to check if it's being waited on
+    tcbList[targetThread]->waitingThread = current_thread;
+    tcbList[current_thread]->status = THREAD_YIELDED;
+	
+	// this for the runQueueHelper()'s reference
+	current_status = THREAD_WAITING;
+	
+	//set threads value exit() will later set
+	tcbList[current_thread]->valuePtr = value_ptr;
+	
+	
+	printf("Value of ptr: %p\n", tcbList[current_thread]->valuePtr);
+	
+	//swap back to manager	
+	my_pthread_t tmp = current_thread;
+	current_thread = MAX_NUM_THREADS + 1;
+	swapcontext(&(tcbList[tmp]->context), &Manager);
+	
+	printf("Value of ptr: %p\n", tcbList[current_thread]->valuePtr);
+	
     printf("finished my_pthread_join()!\n");
     return 0; // success
 }
@@ -701,7 +696,8 @@ int runQueueHelper() {
 			printf("Thread #%d finished running!\n", currId);
 			currTcb->status = THREAD_DONE;
 			if(current_exited == 0) {
-				current_thread = tcbList[currId]->tid;
+				//current_thread = tcbList[currId]->tid;
+				tcbList[current_thread]->waitingThread = MAX_NUM_THREADS + 2;
 				my_pthread_exit(NULL);
 			}
 		}

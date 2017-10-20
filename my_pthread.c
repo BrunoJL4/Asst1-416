@@ -304,12 +304,12 @@ printf("entered my_pthread_join()!\n");
 int my_pthread_mutex_init(my_pthread_mutex_t *mutex, const pthread_mutexattr_t *attr) {
 	printf("entered my_mutex_init()!\n");
 	//initialize mutex
-	my_pthread_mutex_t *ret = malloc(sizeof(my_pthread_mutex_t));
-	ret->status = UNLOCKED;
-	ret->waitQueue = NULL;
-	ret->ownerID = MAX_NUM_THREADS + 1;
-	ret->attr = attr;
-	*mutex = *ret;
+	//user already allocated space by declaring the mutex,
+	//we just change its members.
+	mutex->status = UNLOCKED;
+	mutex->waitQueue = NULL;
+	mutex->ownerID = MAX_NUM_THREADS + 1;
+	mutex->attr = attr;
 	printf("finished my_mutex_init()\n");
 	return 0;
 }
@@ -397,8 +397,7 @@ int my_pthread_mutex_destroy(my_pthread_mutex_t *mutex) {
 	else if (mutex->status == LOCKED) {
 		return -1;
 	}	
-	//otherwise, free the memory used
-	free(mutex);
+	//can't free memory used...
 		
 	printf("exiting my_pthread_mutex_destroy()!\n");
 	return 0;

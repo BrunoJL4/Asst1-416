@@ -2,9 +2,9 @@
 // Author:	Yujie REN
 // Date:	09/23/2017
 
-// name:
-// username of iLab:
-// iLab Server:
+// name: Bruno J. Lucarelli
+// username of iLab: bjl145
+// iLab Server: man.cs.rutgers.edu
 
 #include "my_pthread_t.h"
 #define MEM 16384 //Amount of memory used for a new context stack
@@ -697,6 +697,7 @@ void VTALRMhandler(int signum) {
 
 
 int init_manager_thread() {
+	printf("Using my_pthread implementation!\n");
 	// initialize global variables before adding Main's thread
 	// to the manager
 	MLPQ = malloc(NUM_PRIORITY_LEVELS * (sizeof(pnode)));

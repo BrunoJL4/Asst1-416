@@ -2,9 +2,9 @@
 // Author:	Yujie REN
 // Date:	09/23/2017
 
-// name:
-// username of iLab:
-// iLab Server: 
+// name: Bruno J. Lucarelli
+// username of iLab: bjl145
+// iLab Server: man.cs.rutgers.edu
 #ifndef MY_PTHREAD_T_H
 #define MY_PTHREAD_T_H
 
@@ -22,7 +22,9 @@
 #include <sys/types.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <stdint.h>
 #include <string.h>
+#include <time.h>
 
 typedef uint my_pthread_t;
 
@@ -176,7 +178,7 @@ int my_pthread_mutex_destroy(my_pthread_mutex_t *mutex);
 /* Initializes the manager thread, with the user's calling function
 being saved as a child thread which is itself managed by the 
 manager thread. Returns 0 on failure, 1 on success.*/
-int init_master_thread();
+int init_manager_thread();
 
 /* Carries out the manager thread responsibilities.
 Makes use of runQueueHelper() and maintenanceHelper() in order
